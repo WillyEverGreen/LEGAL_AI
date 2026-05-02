@@ -40,11 +40,11 @@ class QueryRequest(BaseModel):
     analysis_mode: bool = False
     session_id: str = None  # NEW: For conversation memory
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def read_root():
     return {"status": "ok", "service": "RAG Service"}
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health_check():
     return {"status": "healthy"}
 
