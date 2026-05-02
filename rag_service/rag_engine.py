@@ -46,13 +46,40 @@ class RAGEngine:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         chroma_path = os.path.join(base_dir, "chroma_db")
         
+        class NvidiaEmbeddingFunction(chromadb.EmbeddingFunction):
+            def __init__(self, api_key):
+                self.api_key = api_key
+                self.url = "https://integrate.api.nvidia.com/v1/embeddings"
+            
+            def __call__(self, input: List[str]) -> List[List[float]]:
+                headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
+                # Model 'nvidia/nv-embedqa-e5-v5' is high quality and cloud-based
+                data = {"input": input, "model": "nvidia/nv-embedqa-e5-v5", "input_type": "query", "encoding_format": "float"}
+                response = requests.post(self.url, headers=headers, json=data)
+                if response.status_code != 200:
+                    raise Exception(f"NVIDIA Embedding Error: {response.text}")
+                return [item["embedding"] for item in response.json()["data"]]
+
         try:
             self.db_client = chromadb.PersistentClient(path=chroma_path)
-            self.ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-            self.collection = self.db_client.get_collection(name="legal_knowledge", embedding_function=self.ef)
-            print(f"[RAGEngine] Connected to Vector DB at {chroma_path}. ({self.collection.count()} docs)")
+            
+            # Use NVIDIA Cloud Embeddings to save RAM (removes need for local models)
+            if self.nvidia_api_key:
+                self.ef = NvidiaEmbeddingFunction(self.nvidia_api_key)
+                # Use v2 collection for the new embedding dimensions (1024)
+                collection_name = "legal_knowledge_v2"
+            else:
+                self.ef = embedding_functions.DefaultEmbeddingFunction()
+                collection_name = "legal_knowledge_default"
+                
+            self.collection = self.db_client.get_or_create_collection(name=collection_name, embedding_function=self.ef)
+            print(f"[RAGEngine] Connected to Vector DB [{collection_name}]. ({self.collection.count()} docs)")
+            
+            # Simple check: If collection is empty, we would normally ingest here.
+            # For now, we prioritize stability and will let the user upload files.
+            
         except Exception as e:
-             print(f"[RAGEngine] ⚠️ Vector DB Connection Error: {e}. Ensure 'ingest_vector.py' has been run.")
+             print(f"[RAGEngine] ⚠️ Vector DB Connection Error: {e}")
              self.collection = None
 
     def _classify_query(self, query: str) -> str:

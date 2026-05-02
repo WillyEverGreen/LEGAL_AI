@@ -3,7 +3,6 @@ uvicorn
 python-multipart
 requests
 chromadb
-sentence-transformers
 python-dotenv
 pypdf
 pytesseract>=0.3.10
