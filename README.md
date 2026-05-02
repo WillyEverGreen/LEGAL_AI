@@ -16,11 +16,11 @@ We utilize **NVIDIA NIM (NVIDIA Inference Microservices)** for ultra-low latency
 - **Primary Model**: `meta/llama-3.1-70b-instruct` for complex legal analysis and drafting.
 - **Secondary Model**: `meta/llama-3.1-8b-instruct` for fast greetings and general intent classification.
 
-### 🔍 Search Engine: The RAG Pipeline
-Unlike generic LLMs, LegalAi doesn't hallucinate. It uses a custom **RAG (Retrieval-Augmented Generation)** pipeline:
-- **Vector DB**: `ChromaDB` stores thousands of legal statutes and landmark judgments.
-- **Embeddings**: `Sentence Transformers (all-MiniLM-L6-v2)` for precise semantic retrieval.
-- **Processing**: A 12-stage text cleaning pipeline with OCR support for processing complex PDF legal documents.
+### 🔍 Search Engine: Cloud-Native RAG
+LegalAi uses a high-performance **Cloud-Native RAG** pipeline to eliminate local memory overhead and maximize speed:
+- **NVIDIA Embeddings**: `nv-embedqa-e5-v5` for ultra-precise semantic retrieval via NVIDIA NIM.
+- **Vector DB**: `ChromaDB` (Self-managing, high-speed vector storage).
+- **Processing**: A 12-stage text cleaning pipeline with OCR support for complex PDF legal documents.
 
 ### 🛡️ Security & Scalability: API Gateway
 A specialized Node.js Gateway ensures the system remains stable and secure:
