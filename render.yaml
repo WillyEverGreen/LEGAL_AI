@@ -11,10 +11,6 @@ services:
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
-    disk:
-      name: chroma-data
-      mountPath: /app/rag_service/chroma_db
-      sizeGB: 1
 
   # 2. The API Gateway & Frontend (Node.js)
   - type: web
