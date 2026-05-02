@@ -12,44 +12,20 @@ class TextProcessor:
     """Handles advanced text extraction and cleaning for legal documents"""
     
     def __init__(self):
-        self.language_detector = None
-        try:
-            from lingua import Language, LanguageDetectorBuilder
-            self.language_detector = LanguageDetectorBuilder.from_languages(
-                Language.ENGLISH, Language.HINDI
-            ).build()
-            print("[TextProcessor] Language detector initialized (English/Hindi)")
-        except ImportError:
-            print("[TextProcessor] ⚠️ Lingua not installed. Language detection disabled.")
+        # Language detector disabled in favor of lightweight regex check
+        print("[TextProcessor] Lightweight language detection initialized")
     
     def detect_language(self, text: str) -> str:
         """
-        Detect language of text (English or Hindi)
-        
-        Args:
-            text: Text to analyze
-            
-        Returns:
-            'en' for English, 'hi' for Hindi, 'en' as default
+        Detect language of text (English or Hindi) using lightweight character check
         """
-        if not self.language_detector or not text.strip():
+        if not text or not text.strip():
             return 'en'
         
-        try:
-            # Sample middle portion of text for efficiency
-            sample_length = min(len(text), 5000)
-            start_pos = max(0, (len(text) - sample_length) // 2)
-            sample = text[start_pos:start_pos + sample_length]
-            
-            from lingua import Language
-            detected = self.language_detector.detect_language_of(sample)
-            
-            if detected == Language.HINDI:
-                return 'hi'
-            return 'en'
-        except Exception as e:
-            print(f"[TextProcessor] Language detection error: {e}")
-            return 'en'
+        # Check for Devanagari characters (Hindi)
+        if re.search(r'[\u0900-\u097F]', text):
+            return 'hi'
+        return 'en'
     
     def extract_text_from_pdf(self, file_content: bytes, filename: str, max_ocr_pages: int = 100) -> Tuple[str, str]:
         """
@@ -93,28 +69,6 @@ class TextProcessor:
         except Exception as e:
             print(f"[TextProcessor] PyMuPDF failed: {e}. Trying fallback...")
         
-        # Fallback to pdfplumber
-        try:
-            import pdfplumber
-            full_text = ""
-            
-            with pdfplumber.open(io.BytesIO(file_content)) as pdf:
-                total_pages = len(pdf.pages)
-                print(f"[TextProcessor] Trying pdfplumber extraction...")
-                
-                for page in pdf.pages:
-                    extracted = page.extract_text()
-                    if extracted:
-                        full_text += extracted + "\n"
-                
-                if len(full_text.strip()) > 100:
-                    print(f"[TextProcessor] pdfplumber extraction successful ({len(full_text)} chars)")
-                    return full_text, "pdfplumber"
-        
-        except ImportError:
-             print("[TextProcessor] pdfplumber not installed. Skipping.")
-        except Exception as e:
-            print(f"[TextProcessor] pdfplumber failed: {e}")
 
         # Fallback to pypdf (Pure Python, very reliable)
         try:
