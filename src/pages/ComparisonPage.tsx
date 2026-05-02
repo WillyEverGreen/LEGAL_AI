@@ -15,6 +15,7 @@ import { ArrowRightLeft, Sparkles, Loader2, Scale, AlertTriangle, BookOpen, Gave
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { LawSearch, LawSection } from "@/components/LawSearch";
+import { getApiUrl } from "@/lib/api";
 
 
 interface ComparisonResult {
@@ -80,7 +81,7 @@ const ComparisonPage = () => {
 
         try {
             // Priority: Try AI Analysis First using the backend
-            const response = await fetch('http://localhost:8000/compare', {
+            const response = await fetch(getApiUrl('/compare'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

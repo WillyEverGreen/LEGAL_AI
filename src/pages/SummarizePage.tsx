@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
+import { getApiUrl } from "@/lib/api";
 
 interface SummaryHistory {
     id: string;
@@ -103,7 +104,7 @@ const SummarizePage = () => {
         formData.append('file', file);
 
         try {
-            const response = await fetch('http://localhost:8000/summarize', {
+            const response = await fetch(getApiUrl('/summarize'), {
                 method: 'POST',
                 body: formData
             });

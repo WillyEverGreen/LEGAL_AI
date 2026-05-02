@@ -11,6 +11,7 @@ import Header from "@/components/Header";
 import jsPDF from 'jspdf';
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getApiUrl } from "@/lib/api";
 
 const exampleScenarios: Record<string, string> = {
     legal_notice: "Sender: Ramesh Kumar, 123 MG Road, Mumbai.\nRecipient: Suresh Patel, 456 Link Road, Mumbai.\nIssue: Non-repair of rented property despite multiple reminders.\nDemand: Repair damages worth Rs. 50,000 within 15 days or face legal action.",
@@ -84,7 +85,7 @@ const DraftingPage = () => {
         setIsGenerating(true);
 
         try {
-            const response = await fetch('http://localhost:8000/draft', {
+            const response = await fetch(getApiUrl('/draft'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

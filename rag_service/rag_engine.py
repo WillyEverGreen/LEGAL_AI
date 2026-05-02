@@ -12,17 +12,27 @@ from conversation_memory import ConversationMemory
 
 class RAGEngine:
     def __init__(self):
-        self.api_key = os.getenv("OPENROUTER_API_KEY") 
-        # Default to free Mistral, but allow override via .env (e.g., 'openai/gpt-4o')
-        self.model_name = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct") # Valid model ID
-        # Separate model routing (legal vs general)
-        self.model_legal = os.getenv("OPENROUTER_MODEL_LEGAL", os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-orchestrator-8b"))
-        self.model_simple = os.getenv("OPENROUTER_MODEL_SIMPLE", "mistralai/mistral-7b-instruct")
+        self.nvidia_api_key = os.getenv("NVIDIA_API_KEY")
+        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+        
+        # Priority: NVIDIA NIM -> OpenRouter
+        self.api_key = self.nvidia_api_key or self.openrouter_api_key
+        self.provider = "nvidia" if self.nvidia_api_key else "openrouter"
 
-        if self.api_key:
-            print(f"[RAGEngine] OpenRouter Key Found. Using Model(s): legal={self.model_legal}, simple={self.model_simple}")
+        # Model mapping
+        if self.provider == "nvidia":
+            self.model_name = os.getenv("NVIDIA_MODEL", "meta/llama-3.1-8b-instruct")
+            self.model_legal = os.getenv("NVIDIA_MODEL_LEGAL", "meta/llama-3.1-70b-instruct")
+            self.model_simple = os.getenv("NVIDIA_MODEL_SIMPLE", "meta/llama-3.1-8b-instruct")
+            print(f"[RAGEngine] Using NVIDIA NIM API. Models: {self.model_name}")
         else:
-            print("[RAGEngine] ⚠️ Warning: OPENROUTER_API_KEY not found. LLM features disabled.")
+            self.model_name = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct")
+            self.model_legal = os.getenv("OPENROUTER_MODEL_LEGAL", "nvidia/nemotron-orchestrator-8b")
+            self.model_simple = os.getenv("OPENROUTER_MODEL_SIMPLE", "mistralai/mistral-7b-instruct")
+            print(f"[RAGEngine] Using OpenRouter API. Models: {self.model_name}")
+
+        if not self.api_key:
+            print("[RAGEngine] ⚠️ Warning: No API Key found (NVIDIA or OpenRouter). LLM features disabled.")
 
         # Initialize Enhanced Text Processor
         self.text_processor = TextProcessor()
@@ -105,26 +115,33 @@ class RAGEngine:
     
     
     def _call_llm(self, messages: List[Dict], max_tokens: int = 1500, timeout: int = 30, model_override: Optional[str] = None) -> str:
-        """Helper to call OpenRouter API with timeout."""
+        """Helper to call LLM API with timeout."""
         if not self.api_key:
             raise Exception("API Key missing")
 
-        url = "https://openrouter.ai/api/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": os.getenv("APP_URL", "http://localhost:3000"),
-            "X-Title": "LegalAi",
-            "Content-Type": "application/json"
-        }
+        if self.provider == "nvidia":
+            url = "https://integrate.api.nvidia.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+        else:
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "HTTP-Referer": os.getenv("APP_URL", "http://localhost:3000"),
+                "X-Title": "LegalAi",
+                "Content-Type": "application/json"
+            }
+
         data = {
             "model": model_override or self.model_name,
             "messages": messages,
-            "temperature": 0.3,
+            "temperature": 0.2,
             "max_tokens": max_tokens
         }
 
         try:
-            # Optimized timeout: 30s (was 120s)
             response = requests.post(url, headers=headers, json=data, timeout=timeout)
             
             if response.status_code != 200:

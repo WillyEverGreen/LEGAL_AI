@@ -1,72 +1,110 @@
-# ⚖️ LegalAi
+# ⚖️ LegalAi: The Intelligent Justice Engine
 
-**Democratizing Legal Justice with AI.**
+**Democratizing Legal Justice with NVIDIA-Powered AI.**
 *Winner/Participant at Rubix TSEC Hackathon*
 
-LegalAi is a **"Judge-Safe"** legal assistant designed to help everyday citizens and legal professionals navigate the complexities of the Indian judicial system (IPC & BNS). Unlike generic chatbots, it focuses on **verifiable citations**, **neutral analysis**, and **zero hallucinations**.
+LegalAi is a high-performance **"Judge-Safe"** legal research platform. Designed for both citizens and legal professionals, it bridges the gap between the complex Indian Penal Code (IPC) and the new Bharatiya Nyaya Sanhita (BNS) using state-of-the-art **Retrieval-Augmented Generation (RAG)**.
 
-![Landing Page](./public/landing-preview.png)
-*(Note: Add a screenshot of the app here)*
+![Landing Page](./public/landing.png)
 
-## 🚀 Key Features (Why this stands out)
+## 🏗️ The Architecture (Techny & Fancy)
+
+LegalAi is built on a distributed microservices architecture designed for reliability and speed.
+
+### 🧠 Core Intelligence: NVIDIA NIM Integration
+We utilize **NVIDIA NIM (NVIDIA Inference Microservices)** for ultra-low latency legal reasoning.
+- **Primary Model**: `meta/llama-3.1-70b-instruct` for complex legal analysis and drafting.
+- **Secondary Model**: `meta/llama-3.1-8b-instruct` for fast greetings and general intent classification.
+
+### 🔍 Search Engine: The RAG Pipeline
+Unlike generic LLMs, LegalAi doesn't hallucinate. It uses a custom **RAG (Retrieval-Augmented Generation)** pipeline:
+- **Vector DB**: `ChromaDB` stores thousands of legal statutes and landmark judgments.
+- **Embeddings**: `Sentence Transformers (all-MiniLM-L6-v2)` for precise semantic retrieval.
+- **Processing**: A 12-stage text cleaning pipeline with OCR support for processing complex PDF legal documents.
+
+### 🛡️ Security & Scalability: API Gateway
+A specialized Node.js Gateway ensures the system remains stable and secure:
+- **Rate Limiting**: Tiered protection (20 requests/15m for AI, 100 requests/15m for general API) to prevent infrastructure overuse.
+- **Dynamic Routing**: Intelligent intent routing between the RAG engine and lightweight classification models.
+
+---
+
+## 🚀 Key Features
 
 ### 🏆 "Judge-Safe" Innovations
-*   **⚖️ Neutral Legal Analysis**: Instead of giving legal advice, it provides a structured breakdown of "Key Factors" and "Possible Interpretations", acting like a neutral clerk.
-*   **🔥🧊 Generate Arguments**: Instantly drafts "Arguments For" and "Arguments Against" a case to help lawyers brainstorm strategies.
-*   **📄 Professional PDF Reports**: One-click export of your research into a polished PDF memo.
+*   **⚖️ Neutral Legal Analysis**: Instead of giving advice, it breaks down "Key Factors" and "Possible Interpretations", acting like a neutral legal clerk.
+*   **🔥🧊 Balanced Arguments**: Instantly generates "Arguments For" and "Arguments Against" a case to assist in strategic brainstorming.
+*   **📄 Professional Memo Export**: Convert AI research into a formatted, citation-heavy PDF with one click.
 
-### 🇮🇳 Built for India
-*   **IPC ➡️ BNS Transition**: Seamlessly maps old Indian Penal Code sections to the new Bharatiya Nyaya Sanhita.
-*   **🗣️ Voice & Vernacular**: Full support for **Hindi** (Input/Output) and Voice commands.
-*   **📚 Citation-Backed**: Every answer links to the specific Act and Section.
+### 🇮🇳 Specialized for India
+*   **IPC ↔️ BNS Mapping**: Real-time cross-referencing between old and new Indian laws.
+*   **🗣️ Vernacular Intelligence**: Native support for **Hindi** (Input/Output) with voice-to-text integration.
+*   **📚 Citation-First**: Every answer is backed by direct links to IndiaCode statutes.
+
+---
 
 ## 🛠️ Tech Stack
 
-*   **Frontend**: React, Vite, Tailwind CSS, ShadCN UI
-*   **Backend**: Node.js (API Gateway), Python (RAG Service)
-*   **AI/ML**: Custom RAG Pipeline (Sentence Transformers + ChromaDB/FAISS concept)
-*   **Data**: Curated "Golden Dataset" ensuring 100% accuracy for demo topics (Murder, Theft, Defamation).
+- **Frontend**: `React` + `Vite` + `Tailwind CSS` + `ShadCN UI`
+- **Intelligence**: `NVIDIA NIM API` + `Llama 3.1 70B/8B`
+- **Data Engine**: `Python (FastAPI)` + `ChromaDB` + `Sentence Transformers`
+- **Orchestration**: `Node.js (Express)` + `http-proxy-middleware` + `Docker`
+
+---
 
 ## ⚡ Getting Started
 
-### Prerequisites
-*   Node.js (v18+)
-*   Python (v3.9+)
+### 📦 Installation
+```bash
+# Clone the repository
+git clone https://github.com/WillyEverGreen/TSEC_LEGAL_AI.git
+cd TSEC_LEGAL_AI
 
-### Installation
+# Install all dependencies (Unified Setup)
+npm install
+```
 
-1.  **Clone the repo**
-    ```bash
-    git clone https://github.com/WillyEverGreen/TSEC_LEGAL_AI.git
-    cd TSEC_LEGAL_AI
-    ```
+### 🔑 Environment Setup
+Create a `.env` file in the root based on `.env.example`:
+```env
+NVIDIA_API_KEY=your_nvidia_api_key
+VITE_API_URL=http://localhost:8000
+```
 
-2.  **Install Frontend & Node dependencies**
-    ```bash
-    npm install
-    cd server
-    npm install
-    cd ..
-    ```
-
-3.  **Install RAG dependencies**
-    ```bash
-    cd rag_service
-    pip install -r requirements.txt
-    cd ..
-    ```
-
-### Running the App
-
-Run all services (Frontend + Backend + RAG) with a single command:
-
+### 🏃 Running the Engine
+Launch the entire stack (Frontend + Gateway + RAG) with a single command:
 ```bash
 npm run dev:all
 ```
+The app will be available at `http://localhost:5173`.
 
-The app will launch at `http://localhost:5173`.
+---
 
-## 📜 Demo Scenarios (Try these!)
-1.  **"What is the punishment for murder?"** (Checks IPC vs BNS mapping)
-2.  **"Someone stole my wallet on the train."** (Neutral Analysis)
-3.  **"Draft a defense for a defamation case."** (Generate Arguments Mode)
+## 📦 Deployment
+
+### Docker Compose (Recommended)
+```bash
+docker-compose -f deployment/docker-compose.yml up --build
+```
+
+### Manual Production Start
+```bash
+npm run build
+npm start
+```
+
+---
+
+## 📂 System Organization
+- `rag_service/`: The heart of the AI—Python FastAPI service managing ChromaDB and NVIDIA NIM.
+- `server/`: Node.js Gateway providing rate limiting, proxying, and static file serving.
+- `scripts/maintenance/`: Maintenance suite for data ingestion and system setup.
+- `deployment/`: Production-grade container configurations.
+
+## 📜 Example Queries
+1.  *"What changed in IPC 302 under the new BNS system?"*
+2.  *"Draft a balanced legal analysis for a workplace dispute."*
+3.  *"Summarize this 50-page judgment and extract key IPC sections."*
+
+---
+*Built for the Rubix TSEC Hackathon.*

@@ -11,6 +11,7 @@ import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { ReadAloudButton } from "@/components/ReadAloudButton";
+import { getApiUrl } from "@/lib/api";
 
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -443,7 +444,7 @@ const ChatPage = () => {
     }
 
     try {
-        const response = await fetch('http://localhost:8000/query', { // Pointing directly to backend for stability
+        const response = await fetch(getApiUrl('/query'), { // Pointing directly to backend for stability
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 

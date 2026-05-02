@@ -1,0 +1,37 @@
+services:
+  # 1. The RAG Service (Python FastAPI)
+  - type: web
+    name: legal-ai-rag
+    env: python
+    buildCommand: pip install -r rag_service/requirements.txt
+    startCommand: cd rag_service && uvicorn main:app --host 0.0.0.0 --port 8000
+    plan: free # Can be upgraded to 'starter' for more RAM
+    envVars:
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    disk:
+      name: chroma-data
+      mountPath: /app/rag_service/chroma_db
+      sizeGB: 1
+
+  # 2. The API Gateway & Frontend (Node.js)
+  - type: web
+    name: legal-ai-gateway
+    env: node
+    buildCommand: npm install && npm run build && cd server && npm install
+    startCommand: cd server && node index.js
+    plan: free
+    envVars:
+      - key: RAG_SERVICE_URL
+        fromService:
+          name: legal-ai-rag
+          type: web
+          property: host
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
