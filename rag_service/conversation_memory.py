@@ -115,15 +115,39 @@ class ConversationMemory:
         """
         history = self.get_history(session_id, max_messages=4)
         
+        # Never reformulate greetings, capability questions, or conversational queries
+        query_lower = current_query.lower().strip()
+        import re
+        meta_patterns = [
+            r'\bwhat\s+(?:can|do)\s+(?:you|u)\s+do\b',
+            r'\bwho\s+(?:are|r)\s+(?:you|u)\b',
+            r'\bwhat\s+(?:are|r)\s+(?:you|u)\b',
+            r'\bhow\s+can\s+(?:you|u)\s+help\b',
+            r'\b(?:capabilities|features)\b',
+            r'^(?:hello|hi|hey|namaste|thanks|thank\s+you|ok|okay|bye|good\s+morning|good\s+afternoon|good\s+evening)\b',
+            r'\bwho\s+made\s+you\b'
+        ]
+        if any(re.search(pat, query_lower) for pat in meta_patterns):
+            return current_query
+
         # If no history or query is already detailed, return as-is
         if not history or len(current_query.split()) > 10:
             return current_query
         
-        # Check if query is a follow-up (contains pronouns, short, etc.)
-        follow_up_indicators = ['it', 'this', 'that', 'they', 'what about', 'how about', 'and']
-        is_follow_up = any(indicator in current_query.lower() for indicator in follow_up_indicators)
+        # Check if query is an explicit follow-up referencing previous context
+        follow_up_patterns = [
+            r'\b(its|this|that|these|those)\b',
+            r'\bwhat about\b',
+            r'\bhow about\b',
+            r'\band (what|how|why|is)\b',
+            r'\bis it (bailable|compoundable|cognizable)\b',
+            r'\bwhat is the punishment for (it|that|this)\b'
+        ]
+        import re
+        is_follow_up = any(re.search(pat, query_lower) for pat in follow_up_patterns)
         
-        if not is_follow_up and len(current_query.split()) > 5:
+        # Only reformulate if it's an explicit follow-up
+        if not is_follow_up:
             return current_query
         
         # Extract context from last user-assistant exchange
@@ -134,10 +158,7 @@ class ConversationMemory:
             if msg["role"] == "user" and not last_user_query:
                 last_user_query = msg["content"]
             if msg["role"] == "assistant" and not last_topic:
-                # Extract main topic from assistant response
                 content = msg["content"].lower()
-                # Look for BNS/IPC sections
-                import re
                 bns_match = re.search(r'bns\s+section\s+\d+', content)
                 ipc_match = re.search(r'ipc\s+section\s+\d+', content)
                 
@@ -146,15 +167,15 @@ class ConversationMemory:
                 elif ipc_match:
                     last_topic = ipc_match.group(0).upper()
         
-        # Reformulate query with context
+        # Reformulate query with context only for true follow-ups
         if last_topic:
             reformulated = f"{current_query} (in context of {last_topic})"
         elif last_user_query:
-            reformulated = f"{current_query} (related to: {last_user_query[:50]}...)"
+            reformulated = f"{current_query} (related to: {last_user_query[:40]})"
         else:
             reformulated = current_query
         
-        print(f"[ConversationMemory] Reformulated query: '{current_query}' -> '{reformulated}'")
+        print(f"[ConversationMemory] Follow-up reformulated: '{current_query}' -> '{reformulated}'")
         return reformulated
     
     def clear_session(self, session_id: str):

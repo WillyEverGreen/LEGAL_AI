@@ -95,29 +95,43 @@ class RAGEngine:
              self.collection = None
 
     def _classify_query(self, query: str) -> str:
-        """Classify query as 'simple' or 'legal' for optimization."""
-        query_lower = query.lower()
+        """Classify query as 'simple' (greeting / meta / capabilities) or 'legal'."""
+        q = query.lower().strip()
+        # Normalize informal abbreviations
+        q_norm = re.sub(r'\bu\b', 'you', q)
+        q_norm = re.sub(r'\br\b', 'are', q_norm)
+        q_norm = re.sub(r'\bur\b', 'your', q_norm)
+        q_norm = re.sub(r'\bplz\b', 'please', q_norm)
         
-        # Simple greetings/basic questions that don't need RAG
+        # 1. Clear greetings & meta/capability triggers
         simple_patterns = [
-            'hello', 'hi', 'hey', 'thanks', 'thank you',
-            'what is your name', 'who are you', 'what can you do',
-            'help', 'how to use', 'what are you'
+            'hello', 'hi', 'hey', 'namaste', 'thanks', 'thank you',
+            'what is your name', 'who are you', 'what are you',
+            'what can you do', 'what do you do', 'how can you help',
+            'what are your features', 'capabilities', 'help me', 'how to use',
+            'tell me about yourself', 'who made you', 'good morning', 'good afternoon', 'good evening',
+            'kya kar sakte ho', 'aap kya kar sakte', 'kaise madad kar sakte'
         ]
         
-        if any(pattern in query_lower for pattern in simple_patterns):
-            return 'simple'
+        if any(p in q_norm or p in q for p in simple_patterns):
+            explicit_legal = ['section', 'bns', 'ipc', 'crpc', 'murder', 'theft', 'cheating', 'fir', 'bail']
+            if not any(el in q_norm for el in explicit_legal):
+                return 'simple'
         
-        # Legal queries need full RAG pipeline
+        # 2. Check for legal keywords
         legal_patterns = [
             'section', 'ipc', 'bns', 'law', 'legal', 'penalty', 'punishment',
-            'act', 'case', 'judgment', 'court', 'crime', 'offence', 'right'
+            'act', 'case', 'judgment', 'court', 'crime', 'offence', 'right',
+            'bail', 'fir', 'police', 'complaint', 'petition', 'contract', 'agreement',
+            'cheating', 'fraud', 'theft', 'assault', 'custody', 'divorce', 'consumer'
         ]
-        
-        if any(pattern in query_lower for pattern in legal_patterns):
+        if any(pattern in q_norm for pattern in legal_patterns):
             return 'legal'
         
-        # Default to legal for safety
+        # 3. Very short non-legal queries
+        if len(q.split()) <= 3:
+            return 'simple'
+            
         return 'legal'
     
     def _generate_statute_url(self, law: str, section: str) -> str | None:
@@ -409,20 +423,54 @@ class RAGEngine:
         LONG_TRIGGERS = ["explain", "detail", "elaborate", "analysis", "ingredients"]
         is_long = any(t in query.lower() for t in LONG_TRIGGERS)
 
-        # 0. Smart Routing: rule-based fast path for simple greetings
+        # 0. Smart Routing: rule-based fast path for simple greetings and capabilities
         query_type = self._classify_query(query)
         if query_type == 'simple':
-            # Use lightweight model for general chat
+            q_lower = query.lower()
+            q_norm = re.sub(r'\bu\b', 'you', q_lower)
+            is_capability = any(p in q_norm for p in [
+                'what can you do', 'what do you do', 'how can you help',
+                'who are you', 'capabilities', 'features', 'tell me about yourself', 'what are you'
+            ])
+            if is_capability:
+                intro_answer = (
+                    "### Welcome to **LegalAi** — Your Intelligent Indian Law Research Partner\n\n"
+                    "I am an advanced legal intelligence system specialized in Indian jurisprudence, constitutional law, and statutory penal transitions.\n\n"
+                    "#### Here is what I can do for you:\n\n"
+                    "1. **Statutory Intelligence & Comparison**\n"
+                    "   • Instant analysis across the **Bharatiya Nyaya Sanhita (BNS, 2023)**, **Indian Penal Code (IPC, 1860)**, **CrPC**, and **Information Technology Act, 2000**.\n"
+                    "   • Direct section comparisons with statutory transition tracking and penalty shifts.\n\n"
+                    "2. **Precedents & Verifiable Sources**\n"
+                    "   • Authoritative answers backed by landmark Supreme Court judgments, ratios, and verifiable links to IndiaCode & Indian Kanoon.\n\n"
+                    "3. **Balanced Legal Analysis & Arguments**\n"
+                    "   • Structured prosecution strengths, defense arguments, and neutral judicial interpretations.\n\n"
+                    "4. **Automated Legal Drafting**\n"
+                    "   • Generate formal Legal Demand Notices, Employment Contracts, Non-Disclosure Agreements (NDAs), and Rental Deeds.\n\n"
+                    "5. **Document Summarization & PDF Export**\n"
+                    "   • Summarize lengthy petitions, contracts, and court orders into executive briefs.\n"
+                    "   • Export paginated research reports to PDF and listen via audio Read Aloud.\n\n"
+                    "Ask me any legal question, describe a situation, or search for a specific section to get started!"
+                )
+                return {
+                    "answer": intro_answer,
+                    "citations": [],
+                    "related_judgments": [],
+                    "neutral_analysis": None,
+                    "arguments": None
+                }
+            
+            # For general greetings (e.g. "hello", "good morning", "thanks")
             try:
                 greeting_prompt = (
-                    "You are LegalAi. Answer the user's general question or greeting briefly and politely."
+                    "You are LegalAi, a prestigious AI legal assistant specializing in Indian Law. "
+                    "Respond to the user's greeting or non-legal remark warmly, professionally, and concisely in 2-3 sentences. "
+                    "Invite them to ask about Indian statutes (BNS, IPC), case law, or legal drafting."
                 )
                 routing_response = self._call_llm([
                     {"role": "system", "content": greeting_prompt},
                     {"role": "user", "content": query}
-                ], max_tokens=200, timeout=15, model_override=self.model_simple).strip()
+                ], max_tokens=150, timeout=12, model_override=self.model_simple).strip()
                 if routing_response:
-                    print(f"[RAGEngine] Rule router DIRECT ANSWER: {routing_response[:50]}...")
                     return {
                         "answer": routing_response,
                         "citations": [],
@@ -431,9 +479,15 @@ class RAGEngine:
                         "arguments": None
                     }
             except Exception as e:
-                print(f"[RAGEngine] Simple route error: {e}. Proceeding with search.")
+                print(f"[RAGEngine] Simple greeting fallback: {e}")
+                return {
+                    "answer": "Hello! I am **LegalAi**, your Indian legal assistant. How can I assist you with Indian law, statutes (BNS/IPC), or legal drafting today?",
+                    "citations": [],
+                    "related_judgments": [],
+                    "neutral_analysis": None,
+                    "arguments": None
+                }
 
-        
         context_text = ""
         citations = []
         related_judgments = []
@@ -453,10 +507,32 @@ class RAGEngine:
             except Exception as e:
                 print(f"[RAGEngine] Translation failed: {e}. Using original query.")
 
-        # 1. Retrieve from Vector DB
+        # 1. Retrieve from Vector DB (with Hybrid Exact Section Lookup)
         try:
             print(f"[RAGEngine] Starting Vector Search for '{search_query}'...", flush=True)
             
+            # Exact section matching for statutory precision
+            exact_docs = []
+            exact_metas = []
+            sec_match = re.search(r'\b(?:section|sec\.?|s\.)\s*(\d+[A-Z]*)', search_query, re.I)
+            sec_num = sec_match.group(1) if sec_match else None
+            if not sec_num:
+                num_law_match = re.search(r'\b(\d+[A-Z]*)\s+(?:bns|ipc|crpc|act)\b', search_query, re.I)
+                sec_num = num_law_match.group(1) if num_law_match else None
+
+            if sec_num and self.collection:
+                for sec_field in ['bns_section', 'ipc_section', 'section']:
+                    try:
+                        res_exact = self.collection.get(where={sec_field: sec_num})
+                        if res_exact and res_exact.get('documents'):
+                            print(f"[RAGEngine] Hybrid match: Found exact {sec_field}={sec_num}")
+                            for d, m in zip(res_exact['documents'], res_exact['metadatas']):
+                                exact_docs.append(d)
+                                exact_metas.append(m)
+                            break
+                    except Exception as ex:
+                        print(f"[RAGEngine] Exact section lookup error: {ex}")
+
             search_cache_key = f"search::{search_query}"
             if search_cache_key in self._cache:
                  print("[RAGEngine] Using Cached Search Results.")
@@ -475,27 +551,27 @@ class RAGEngine:
                         n_results=5,
                         include=["documents", "metadatas", "distances"]
                     )
-                # Cache the raw search results
                 self._cache[search_cache_key] = results
                 print(f"[RAGEngine] Vector Search Complete. Found: {len(results['documents'][0])} docs", flush=True)
                 
-                docs = results['documents'][0]
-                metas = results['metadatas'][0]
-                
-                dists = results['distances'][0]
-                min_dist = min(dists) if dists else 1.0
-                
+                raw_docs = results['documents'][0]
+                raw_metas = results['metadatas'][0]
+                raw_dists = results['distances'][0]
+
+                # Merge exact section matches first, followed by relevant vector matches
+                all_candidates = []
+                for d, m in zip(exact_docs, exact_metas):
+                    all_candidates.append((d, m, 0.0))  # 0 distance for exact match
+
+                for d, m, dist in zip(raw_docs, raw_metas, raw_dists):
+                    # Strict distance threshold to reject irrelevant noise
+                    if dist <= 0.88:
+                        if not any(c[0] == d for c in all_candidates):
+                            all_candidates.append((d, m, dist))
+
                 doc_count = 0
-                for i, doc in enumerate(docs):
-                    meta = metas[i]
-                    dist = dists[i]
-                    
-                    # Relevance cutoff adjusted for NVIDIA NIM embeddings
-                    if dist > 1.1:
-                        continue
-                        
-                    # Limit context size: max 4 docs
-                    if doc_count >= 4:
+                for doc, meta, dist in all_candidates:
+                    if doc_count >= 3:
                         break
                     doc_count += 1
                         
