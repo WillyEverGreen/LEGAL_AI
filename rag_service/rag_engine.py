@@ -151,7 +151,7 @@ class RAGEngine:
         return f'https://www.indiacode.nic.in/search?keyword={law.replace(" ", "+")}+section+{section_num}'
     
     
-    def _call_llm(self, messages: list[dict], max_tokens: int = 1500, timeout: int = 30, model_override: str | None = None) -> str:
+    def _call_llm(self, messages: list[dict], max_tokens: int = 1500, timeout: int = 60, model_override: str | None = None) -> str:
         """Helper to call LLM API with timeout."""
         if not self.api_key:
             raise Exception("API Key missing")
@@ -393,7 +393,7 @@ class RAGEngine:
         LONG_TRIGGERS = ["explain", "detail", "elaborate", "analysis", "ingredients"]
         is_long = any(t in query.lower() for t in LONG_TRIGGERS)
 
-        # 0. Smart Routing: rule-based first, LLM as optional fallback
+        # 0. Smart Routing: rule-based fast path for simple greetings
         query_type = self._classify_query(query)
         if query_type == 'simple':
             # Use lightweight model for general chat
@@ -404,7 +404,7 @@ class RAGEngine:
                 routing_response = self._call_llm([
                     {"role": "system", "content": greeting_prompt},
                     {"role": "user", "content": query}
-                ], max_tokens=200, model_override=self.model_simple).strip()
+                ], max_tokens=200, timeout=15, model_override=self.model_simple).strip()
                 if routing_response:
                     print(f"[RAGEngine] Rule router DIRECT ANSWER: {routing_response[:50]}...")
                     return {
@@ -416,30 +416,6 @@ class RAGEngine:
                     }
             except Exception as e:
                 print(f"[RAGEngine] Simple route error: {e}. Proceeding with search.")
-        else:
-            # Optional LLM router as fallback when ambiguous
-            try:
-                router_prompt = (
-                    "You are a Router. Classify the user input.\n"
-                    "- If it is a greeting, general chat, or a question NOT about Indian Law, answer it directly and politely. DO NOT say 'I am a router'. Act as LegalAi.\n"
-                    "- If it is a specific legal question, OR a request for 'details', 'explanation', 'elaboration', or a follow-up to a previous topic, reply ONLY with the word 'SEARCH'.\n"
-                    "- If the input is ambiguous, reply 'SEARCH'.\n"
-                    f"- User Language: {language}\n"
-                    "User Input: " + query
-                )
-                routing_response = self._call_llm([{"role": "user", "content": router_prompt}], max_tokens=150, model_override=self.model_simple).strip()
-                if "SEARCH" not in routing_response and len(routing_response) > 5:
-                    print(f"[RAGEngine] LLM router DIRECT ANSWER: {routing_response[:50]}...")
-                    return {
-                        "answer": routing_response,
-                        "citations": [],
-                        "related_judgments": [],
-                        "neutral_analysis": None,
-                        "arguments": None
-                    }
-                print("[RAGEngine] Router chose SEARCH.")
-            except Exception as e:
-                print(f"[RAGEngine] Router Error: {e}. Falling back to Search.")
 
         
         context_text = ""

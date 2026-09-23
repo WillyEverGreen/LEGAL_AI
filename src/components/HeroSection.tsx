@@ -1,9 +1,10 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { ArrowRight } from "lucide-react";
 import { Button } from "./ui/button";
-import { ArrowRight, Sparkles } from "lucide-react";
 import { ContainerScroll } from "./ui/container-scroll-animation";
+import { HeroAppPreview } from "./HeroAppPreview";
 
 const HeroSection = () => {
   return (
@@ -85,17 +86,12 @@ const HeroSection = () => {
 
       </div>
 
-      {/* Scroll Animation Container for Demo Screenshot */}
-      <div className="w-full -mt-20 md:-mt-32">
+      {/* Scroll Animation Container with Live Responsive App Preview */}
+      <div className="w-full -mt-16 sm:-mt-20 md:-mt-32">
         <ContainerScroll
           titleComponent={<></>}
         >
-          <img 
-            src="/demo-screenshot.png" 
-            alt="LegalAi Demo Interface"
-            className="mx-auto rounded-2xl object-cover h-full object-left-top"
-            draggable={false}
-          />
+          <HeroAppPreview />
         </ContainerScroll>
       </div>
     </div>
