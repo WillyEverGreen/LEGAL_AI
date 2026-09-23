@@ -3,12 +3,8 @@ Comprehensive Legal Acts Extractor
 Extracts full sections from Companies Act, Consumer Protection Act, Motor Vehicles Act
 """
 
-import requests
-from bs4 import BeautifulSoup
 import json
 import os
-import re
-import time
 
 BASE_DIR = "d:/HACATHONS/RUBIX TSEC/legal-compass-ai-main"
 DATA_DIR = os.path.join(BASE_DIR, "rag_service/data")
@@ -171,7 +167,7 @@ class LegalActExtractor:
             json.dump(all_sections, f, indent=2, ensure_ascii=False)
         
         print("\n" + "=" * 60)
-        print(f"\n✅ Comprehensive dataset created: comprehensive_multi_domain.json")
+        print("\n✅ Comprehensive dataset created: comprehensive_multi_domain.json")
         print(f"📊 Total sections: {len(all_sections)}")
         
         # Summary by act

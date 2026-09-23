@@ -1,7 +1,6 @@
-import os
 import csv
 import json
-import re
+import os
 
 # --- CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -29,7 +28,7 @@ def clean_text(text):
     return text.replace("span@", "").strip()
 
 def ingest_bns():
-    print(f"🚀 Starting Statute Ingestion...")
+    print("🚀 Starting Statute Ingestion...")
     
     entries = []
     
@@ -93,7 +92,7 @@ def ingest_bns():
                         entry['text_ipc'] = "Pending IPC Dataset Ingestion"
         print(f"✨ Enriched {enriched} entries with full IPC text.")
     else:
-        print(f"⚠️ IPC CSV not found. Text for old laws will be generic.")
+        print("⚠️ IPC CSV not found. Text for old laws will be generic.")
 
     # 3. Save
     with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:

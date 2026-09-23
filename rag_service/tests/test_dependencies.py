@@ -4,6 +4,7 @@ Test script to verify all enhanced RAG dependencies are installed correctly
 
 import sys
 
+
 def test_imports():
     """Test all required imports for enhanced RAG features"""
     print("="*60)
@@ -81,7 +82,7 @@ def test_imports():
     # Language detection
     print("\n🌐 Language Detection:")
     try:
-        from lingua import LanguageDetectorBuilder, Language
+        from lingua import Language, LanguageDetectorBuilder
         print("  ✓ Lingua language detector installed")
         detector = LanguageDetectorBuilder.from_languages(
             Language.ENGLISH, Language.HINDI

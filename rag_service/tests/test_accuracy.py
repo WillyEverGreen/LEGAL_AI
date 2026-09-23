@@ -3,10 +3,11 @@ Comprehensive accuracy testing for enhanced RAG features
 Tests conversation memory, query reformulation, and retrieval quality
 """
 
-import requests
 import json
 import time
 from datetime import datetime
+
+import requests
 
 BASE_URL = "http://localhost:8000"
 
@@ -305,29 +306,29 @@ class RAGAccuracyTester:
             mem_scores = [r["accuracy"] for r in self.test_results["conversation_memory"]]
             avg_mem = sum(mem_scores) / len(mem_scores)
             print(f"\n💬 Conversation Memory: {avg_mem:.1f}%")
-            print(f"   - Context preservation: ✓")
-            print(f"   - Message tracking: ✓")
+            print("   - Context preservation: ✓")
+            print("   - Message tracking: ✓")
         
         # Query Reformulation
         if self.test_results["query_reformulation"]:
             ref_scores = [r["accuracy"] for r in self.test_results["query_reformulation"]]
             avg_ref = sum(ref_scores) / len(ref_scores)
             print(f"\n🔄 Query Reformulation: {avg_ref:.1f}%")
-            print(f"   - Ambiguous query handling: ✓")
-            print(f"   - Context extraction: ✓")
+            print("   - Ambiguous query handling: ✓")
+            print("   - Context extraction: ✓")
         
         # Retrieval Quality
         if self.test_results["retrieval_quality"]:
             ret_scores = [r["accuracy"] for r in self.test_results["retrieval_quality"]]
             avg_ret = sum(ret_scores) / len(ret_scores)
             print(f"\n🎯 Retrieval Quality: {avg_ret:.1f}%")
-            print(f"   - Citation accuracy: ✓")
-            print(f"   - Content relevance: ✓")
+            print("   - Citation accuracy: ✓")
+            print("   - Content relevance: ✓")
         
         # Performance
         if self.test_results["response_times"]:
             avg_time = sum(self.test_results["response_times"]) / len(self.test_results["response_times"])
-            print(f"\n⚡ Performance Metrics:")
+            print("\n⚡ Performance Metrics:")
             print(f"   - Average response time: {avg_time:.2f}s")
             print(f"   - Min response time: {min(self.test_results['response_times']):.2f}s")
             print(f"   - Max response time: {max(self.test_results['response_times']):.2f}s")

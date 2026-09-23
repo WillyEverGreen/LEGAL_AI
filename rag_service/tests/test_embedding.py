@@ -1,4 +1,5 @@
 import time
+
 print("Testing Embedding Function...")
 start = time.time()
 try:

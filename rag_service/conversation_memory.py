@@ -3,18 +3,18 @@ Conversation Memory Module for Session-Aware RAG
 Implements conversation buffer memory and history-aware query reformulation
 """
 
-from typing import List, Dict, Optional
-from datetime import datetime
 import uuid
+from datetime import datetime
+
 
 class ConversationMemory:
     """Manages conversation history and context for RAG queries"""
     
     def __init__(self):
         # session_id -> conversation history
-        self.sessions: Dict[str, List[Dict]] = {}
+        self.sessions: dict[str, list[dict]] = {}
         # session_id -> metadata
-        self.session_metadata: Dict[str, Dict] = {}
+        self.session_metadata: dict[str, dict] = {}
         print("[ConversationMemory] Initialized")
     
     def create_session(self) -> str:
@@ -62,7 +62,7 @@ class ConversationMemory:
         self.session_metadata[session_id]["last_activity"] = datetime.now().isoformat()
         self.session_metadata[session_id]["message_count"] += 1
     
-    def get_history(self, session_id: str, max_messages: int = 10) -> List[Dict]:
+    def get_history(self, session_id: str, max_messages: int = 10) -> list[dict]:
         """
         Get conversation history for a session
         
@@ -182,7 +182,7 @@ class ConversationMemory:
             del self.session_metadata[session_id]
             print(f"[ConversationMemory] Deleted session: {session_id}")
     
-    def get_session_info(self, session_id: str) -> Optional[Dict]:
+    def get_session_info(self, session_id: str) -> dict | None:
         """
         Get metadata about a session
         

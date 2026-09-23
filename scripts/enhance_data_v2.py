@@ -1,8 +1,9 @@
 
-import json
 import csv
-import re
+import json
 import os
+import re
+
 
 def normalize(text):
     if not text: return ""

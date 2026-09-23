@@ -3,6 +3,7 @@ import csv
 import json
 import os
 
+
 def normalize(text):
     if not text: return ""
     return text.lower().strip().replace(".", "").replace("  ", " ")

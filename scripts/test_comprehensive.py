@@ -1,8 +1,8 @@
 
-import requests
-import time
-import json
 import os
+import time
+
+import requests
 
 API_URL = "http://localhost:8000/query"
 

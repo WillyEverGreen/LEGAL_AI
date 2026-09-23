@@ -5,7 +5,7 @@ Final ingestion with 59 additional sections
 
 import json
 import os
-from sentence_transformers import SentenceTransformer
+
 import chromadb
 from chromadb.config import Settings
 
@@ -81,7 +81,7 @@ def ingest_comprehensive_acts():
     previous_count = final_count - added_count
     
     print(f"\n✅ Successfully ingested {added_count} new documents!")
-    print(f"📊 Vector DB Statistics:")
+    print("📊 Vector DB Statistics:")
     print(f"   Previous: {previous_count} documents")
     print(f"   Added: +{added_count} documents")
     print(f"   Total: {final_count} documents")

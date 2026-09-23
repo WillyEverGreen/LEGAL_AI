@@ -1,5 +1,6 @@
-import requests
 import time
+
+import requests
 
 print("Testing backend health...")
 try:

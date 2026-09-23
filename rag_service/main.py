@@ -1,12 +1,15 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+import os
+
+import uvicorn
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uvicorn
-import os
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false" # Prevent deadlock
 
-from dotenv import load_dotenv
 import pathlib
+
+from dotenv import load_dotenv
 from rag_engine import RAGEngine
 
 # Load .env from parent directory (root of project)

@@ -1,4 +1,5 @@
 import time
+
 print("Testing Text Processor...")
 start = time.time()
 try:

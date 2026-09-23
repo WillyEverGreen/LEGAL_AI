@@ -42,7 +42,16 @@ app.get('/health', (req, res) => {
 });
 
 // Proxy Configuration for RAG Service
-const RAG_SERVICE_URL = process.env.RAG_SERVICE_URL || 'http://localhost:8000';
+let RAG_SERVICE_URL = process.env.RAG_SERVICE_URL || 'http://localhost:8000';
+
+// Ensure protocol exists for http-proxy-middleware
+if (!RAG_SERVICE_URL.startsWith('http://') && !RAG_SERVICE_URL.startsWith('https://')) {
+    if (!RAG_SERVICE_URL.includes(':')) {
+        RAG_SERVICE_URL = `http://${RAG_SERVICE_URL}:8000`;
+    } else {
+        RAG_SERVICE_URL = `http://${RAG_SERVICE_URL}`;
+    }
+}
 
 const path = require('path');
 
@@ -54,8 +63,17 @@ app.use('/api/v1', createProxyMiddleware({
         '^/api/v1': '', // Remove /api/v1 prefix when forwarding to RAG service
     },
     onProxyReq: (proxyReq, req, res) => {
-        // Optional: Add logging or auth headers here
         console.log(`[Gateway] Forwarding ${req.method} request to: ${proxyReq.path}`);
+    },
+    onError: (err, req, res) => {
+        console.error(`[Gateway] Proxy connection error to ${RAG_SERVICE_URL}:`, err.message);
+        if (!res.headersSent) {
+            res.status(502).json({
+                status: 'error',
+                message: 'Unable to connect to LegalAi RAG service. Service may still be spinning up.',
+                detail: err.message
+            });
+        }
     },
     proxyTimeout: 300000,
     timeout: 300000

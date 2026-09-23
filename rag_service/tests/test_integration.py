@@ -54,7 +54,7 @@ try:
     
     # Test query reformulation
     reformulated = memory.reformulate_query(session_id, "What about that?")
-    print(f"   ✓ Query reformulation working")
+    print("   ✓ Query reformulation working")
     
 except Exception as e:
     print(f"   ✗ Error: {e}")
@@ -79,11 +79,11 @@ try:
     import pytesseract
     version = pytesseract.get_tesseract_version()
     print(f"   ✓ Tesseract version: {version}")
-    print(f"   ✓ OCR support ready for scanned PDFs")
+    print("   ✓ OCR support ready for scanned PDFs")
     
 except Exception as e:
     print(f"   ✗ Tesseract error: {e}")
-    print(f"   ⚠️  OCR will not work for scanned documents")
+    print("   ⚠️  OCR will not work for scanned documents")
 
 # Test 5: Test PDF processing
 print("\n5️⃣  Testing PDF Processing Libraries...")
@@ -91,19 +91,17 @@ try:
     import fitz  # PyMuPDF
     print(f"   ✓ PyMuPDF installed (version: {fitz.version[0]})")
 except:
-    print(f"   ✗ PyMuPDF not available")
+    print("   ✗ PyMuPDF not available")
 
 try:
-    import pdfplumber
-    print(f"   ✓ pdfplumber installed")
+    print("   ✓ pdfplumber installed")
 except:
-    print(f"   ✗ pdfplumber not available")
+    print("   ✗ pdfplumber not available")
 
 try:
-    from pdf2image import convert_from_bytes
-    print(f"   ✓ pdf2image installed (for OCR)")
+    print("   ✓ pdf2image installed (for OCR)")
 except:
-    print(f"   ⚠️  pdf2image not available (OCR may not work)")
+    print("   ⚠️  pdf2image not available (OCR may not work)")
 
 print("\n" + "="*60)
 print("✅ All core features are working!")
@@ -113,4 +111,4 @@ print("   1. Start the RAG service: uvicorn main:app --reload --port 8000")
 print("   2. Test with a PDF upload to /summarize endpoint")
 print("   3. Test conversation memory with /session/create")
 print("\n💡 Tip: Add Tesseract to your permanent PATH:")
-print(f"   Run: .\\setup_tesseract.ps1")
+print("   Run: .\\setup_tesseract.ps1")

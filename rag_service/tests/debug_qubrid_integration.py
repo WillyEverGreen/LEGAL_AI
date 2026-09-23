@@ -1,8 +1,9 @@
 
-import sys
+import asyncio
 import os
 import pathlib
-import asyncio
+import sys
+
 from dotenv import load_dotenv
 
 # Path setup

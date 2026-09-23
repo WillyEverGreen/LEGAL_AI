@@ -13,12 +13,11 @@ LegalAi is built on a distributed microservices architecture designed for reliab
 
 ### 🧠 Core Intelligence: NVIDIA NIM Integration
 We utilize **NVIDIA NIM (NVIDIA Inference Microservices)** for ultra-low latency legal reasoning.
-- **Primary Model**: `meta/llama-3.1-70b-instruct` for complex legal analysis and drafting.
-- **Secondary Model**: `meta/llama-3.1-8b-instruct` for fast greetings and general intent classification.
+- **Primary Model**: `meta/llama-3.2-11b-vision-instruct` for fast legal reasoning, statutory analysis, and drafting.
 
 ### 🔍 Search Engine: Cloud-Native RAG
 LegalAi uses a high-performance **Cloud-Native RAG** pipeline to eliminate local memory overhead and maximize speed:
-- **NVIDIA Embeddings**: `nv-embedqa-e5-v5` for ultra-precise semantic retrieval via NVIDIA NIM.
+- **NVIDIA Embeddings**: `nvidia/nemotron-3-embed-1b` (2048-dim) for ultra-precise semantic retrieval via NVIDIA NIM.
 - **Vector DB**: `ChromaDB` (Self-managing, high-speed vector storage).
 - **Processing**: A 12-stage text cleaning pipeline with OCR support for complex PDF legal documents.
 

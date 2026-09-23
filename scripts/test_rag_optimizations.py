@@ -3,15 +3,16 @@ Test RAG Engine Optimizations
 Verifies query classification, timeouts, and vector search improvements
 """
 
-import sys
-import os
 import asyncio
+import os
+import sys
 import time
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'rag_service'))
 
 from rag_engine import RAGEngine
+
 
 async def test_rag_optimizations():
     print("="*70)

@@ -1,14 +1,20 @@
 
 import os
-import json
 import re
-from typing import List, Dict, Any, Optional
+import pathlib
+from typing import Any
+from dotenv import load_dotenv
+
 import chromadb
-from chromadb.utils import embedding_functions
 import requests
-import io
-from text_processor import TextProcessor
+from chromadb.utils import embedding_functions
 from conversation_memory import ConversationMemory
+from text_processor import TextProcessor
+
+# Load environment from root if present
+base_path = pathlib.Path(__file__).parent.parent
+load_dotenv(dotenv_path=base_path / ".env")
+
 
 class RAGEngine:
     def __init__(self):
@@ -21,9 +27,9 @@ class RAGEngine:
 
         # Model mapping
         if self.provider == "nvidia":
-            self.model_name = os.getenv("NVIDIA_MODEL", "meta/llama-3.1-8b-instruct")
-            self.model_legal = os.getenv("NVIDIA_MODEL_LEGAL", "meta/llama-3.1-70b-instruct")
-            self.model_simple = os.getenv("NVIDIA_MODEL_SIMPLE", "meta/llama-3.1-8b-instruct")
+            self.model_name = os.getenv("NVIDIA_MODEL", "meta/llama-3.2-11b-vision-instruct")
+            self.model_legal = os.getenv("NVIDIA_MODEL_LEGAL", "meta/llama-3.2-11b-vision-instruct")
+            self.model_simple = os.getenv("NVIDIA_MODEL_SIMPLE", "meta/llama-3.2-11b-vision-instruct")
             print(f"[RAGEngine] Using NVIDIA NIM API. Models: {self.model_name}")
         else:
             self.model_name = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct")
@@ -32,7 +38,7 @@ class RAGEngine:
             print(f"[RAGEngine] Using OpenRouter API. Models: {self.model_name}")
 
         if not self.api_key:
-            print("[RAGEngine] ⚠️ Warning: No API Key found (NVIDIA or OpenRouter). LLM features disabled.")
+            print("[RAGEngine] [WARN] No API Key found (NVIDIA or OpenRouter). LLM features disabled.")
 
         # Initialize Enhanced Text Processor
         self.text_processor = TextProcessor()
@@ -40,7 +46,7 @@ class RAGEngine:
         # Initialize Conversation Memory
         self.conversation_memory = ConversationMemory()
         # Simple in-memory response cache
-        self._cache: Dict[str, Dict[str, Any]] = {}
+        self._cache: dict[str, dict[str, Any]] = {}
 
         # Initialize ChromaDB Client
         base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -50,12 +56,13 @@ class RAGEngine:
             def __init__(self, api_key):
                 self.api_key = api_key
                 self.url = "https://integrate.api.nvidia.com/v1/embeddings"
+                self.model = os.getenv("NVIDIA_EMBED_MODEL", "nvidia/nemotron-3-embed-1b")
             
-            def __call__(self, input: List[str]) -> List[List[float]]:
+            def __call__(self, input: list[str]) -> list[list[float]]:
                 headers = {"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"}
-                # Model 'nvidia/nv-embedqa-e5-v5' is high quality and cloud-based
-                data = {"input": input, "model": "nvidia/nv-embedqa-e5-v5", "input_type": "query", "encoding_format": "float"}
-                response = requests.post(self.url, headers=headers, json=data)
+                cleaned = [t if (t and t.strip()) else "N/A" for t in input]
+                data = {"input": cleaned, "model": self.model}
+                response = requests.post(self.url, headers=headers, json=data, timeout=30)
                 if response.status_code != 200:
                     raise Exception(f"NVIDIA Embedding Error: {response.text}")
                 return [item["embedding"] for item in response.json()["data"]]
@@ -66,20 +73,23 @@ class RAGEngine:
             # Use NVIDIA Cloud Embeddings to save RAM (removes need for local models)
             if self.nvidia_api_key:
                 self.ef = NvidiaEmbeddingFunction(self.nvidia_api_key)
-                # Use v2 collection for the new embedding dimensions (1024)
+                # Use v2 collection for the NVIDIA NIM embedding dimensions (2048)
                 collection_name = "legal_knowledge_v2"
             else:
                 self.ef = embedding_functions.DefaultEmbeddingFunction()
                 collection_name = "legal_knowledge_default"
                 
-            self.collection = self.db_client.get_or_create_collection(name=collection_name, embedding_function=self.ef)
+            try:
+                self.collection = self.db_client.get_collection(name=collection_name)
+            except Exception:
+                self.collection = self.db_client.get_or_create_collection(name=collection_name)
             print(f"[RAGEngine] Connected to Vector DB [{collection_name}]. ({self.collection.count()} docs)")
             
             # Simple check: If collection is empty, we would normally ingest here.
             # For now, we prioritize stability and will let the user upload files.
             
         except Exception as e:
-             print(f"[RAGEngine] ⚠️ Vector DB Connection Error: {e}")
+             print(f"[RAGEngine] [WARN] Vector DB Connection Error: {e}")
              self.collection = None
 
     def _classify_query(self, query: str) -> str:
@@ -108,7 +118,7 @@ class RAGEngine:
         # Default to legal for safety
         return 'legal'
     
-    def _generate_statute_url(self, law: str, section: str) -> Optional[str]:
+    def _generate_statute_url(self, law: str, section: str) -> str | None:
         """Generate IndiaCode.nic.in URL for Indian statutes."""
         if not law or not section:
             return None
@@ -141,7 +151,7 @@ class RAGEngine:
         return f'https://www.indiacode.nic.in/search?keyword={law.replace(" ", "+")}+section+{section_num}'
     
     
-    def _call_llm(self, messages: List[Dict], max_tokens: int = 1500, timeout: int = 30, model_override: Optional[str] = None) -> str:
+    def _call_llm(self, messages: list[dict], max_tokens: int = 1500, timeout: int = 30, model_override: str | None = None) -> str:
         """Helper to call LLM API with timeout."""
         if not self.api_key:
             raise Exception("API Key missing")
@@ -195,7 +205,7 @@ class RAGEngine:
         """Cleans extracted text by normalizing whitespace."""
         return re.sub(r'\s+', ' ', text).strip()
 
-    def _chunk_text(self, text: str, chunk_size: int = 6000) -> List[str]:
+    def _chunk_text(self, text: str, chunk_size: int = 6000) -> list[str]:
         """Splits text into chunks of approx chunk_size characters (roughly 1500 tokens)."""
         chunks = []
         for i in range(0, len(text), chunk_size):
@@ -301,7 +311,7 @@ class RAGEngine:
 
         except Exception as e:
             print(f"[RAGEngine] Summarization Pipeline Error: {e}")
-            return f"Failed to summarize document: {str(e)}"
+            return f"Failed to summarize document: {e!s}"
 
     async def compare_clauses(self, text1: str, text2: str) -> dict:
         """
@@ -356,7 +366,7 @@ class RAGEngine:
             print(f"[RAGEngine] Compare Error: {e}")
             return {"error": str(e)}
 
-    async def query(self, query: str, language: str = "en", arguments_mode: bool = False, analysis_mode: bool = False, session_id: Optional[str] = None) -> Dict[str, Any]:
+    async def query(self, query: str, language: str = "en", arguments_mode: bool = False, analysis_mode: bool = False, session_id: str | None = None) -> dict[str, Any]:
         """
         Semantic Search + LLM Generation with Conversation Memory.
         
@@ -427,7 +437,7 @@ class RAGEngine:
                         "neutral_analysis": None,
                         "arguments": None
                     }
-                print(f"[RAGEngine] Router chose SEARCH.")
+                print("[RAGEngine] Router chose SEARCH.")
             except Exception as e:
                 print(f"[RAGEngine] Router Error: {e}. Falling back to Search.")
 
@@ -441,7 +451,7 @@ class RAGEngine:
         search_query = query
         if language == 'hi':
             try:
-                print(f"[RAGEngine] Translating query to English for Search...")
+                print("[RAGEngine] Translating query to English for Search...")
                 translation_prompt = f"Translate the following Hindi legal query to precise English legal terms for a database search. Output ONLY the English translation.\nHindi: {query}"
                 translated_query = self._call_llm([{"role": "user", "content": translation_prompt}], max_tokens=100).strip()
                 safe_translated = translated_query.encode('ascii', 'replace').decode('ascii')
@@ -457,14 +467,22 @@ class RAGEngine:
             
             search_cache_key = f"search::{search_query}"
             if search_cache_key in self._cache:
-                 print(f"[RAGEngine] Using Cached Search Results.")
+                 print("[RAGEngine] Using Cached Search Results.")
                  results = self._cache[search_cache_key]
             elif self.collection:
-                results = self.collection.query(
-                    query_texts=[search_query], # Use the (potentially) translated query
-                    n_results=5,
-                    include=["documents", "metadatas", "distances"]
-                )
+                if self.ef:
+                    query_embs = self.ef([search_query])
+                    results = self.collection.query(
+                        query_embeddings=query_embs,
+                        n_results=5,
+                        include=["documents", "metadatas", "distances"]
+                    )
+                else:
+                    results = self.collection.query(
+                        query_texts=[search_query],
+                        n_results=5,
+                        include=["documents", "metadatas", "distances"]
+                    )
                 # Cache the raw search results
                 self._cache[search_cache_key] = results
                 print(f"[RAGEngine] Vector Search Complete. Found: {len(results['documents'][0])} docs", flush=True)
@@ -480,9 +498,8 @@ class RAGEngine:
                     meta = metas[i]
                     dist = dists[i]
                     
-                    # Relevance Cutoff tightened: dynamic + absolute guard
-                    # RELAXED threshold per expert recommendation
-                    if dist > 0.45:
+                    # Relevance cutoff adjusted for NVIDIA NIM embeddings
+                    if dist > 1.1:
                         continue
                         
                     # Limit context size: max 4 docs
@@ -529,7 +546,7 @@ class RAGEngine:
         neutral_analysis = None
         arguments = None
         
-        print(f"[RAGEngine] Preparing LLM request...", flush=True)
+        print("[RAGEngine] Preparing LLM request...", flush=True)
         if self.api_key:
             system_prompt = (
                 "You are LegalAi, an expert Indian legal research assistant with comprehensive knowledge of Indian law.\n\n"
@@ -601,7 +618,7 @@ class RAGEngine:
                 )
 
             try:
-                print(f"[RAGEngine] Calling LLM now...", flush=True)
+                print("[RAGEngine] Calling LLM now...", flush=True)
                 # Check cache (keyed by query + language + top sources)
                 cache_key = f"{language}|{query.strip()}|{','.join([c.get('source','') for c in citations[:2]])}"
                 if cache_key in self._cache:
@@ -619,11 +636,11 @@ class RAGEngine:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_query}
                 ], max_tokens=max_tokens, model_override=self.model_simple)
-                print(f"[RAGEngine] LLM returned response.", flush=True)
+                print("[RAGEngine] LLM returned response.", flush=True)
                 try:
                     print(f"\n[DEBUG] Raw LLM Answer:\n{raw_answer.encode('utf-8', 'replace').decode('utf-8')}\n[DEBUG] End Raw Answer\n", flush=True)
                 except Exception:
-                     print(f"\n[DEBUG] Raw LLM Answer: (encoding error)\n[DEBUG] End Raw Answer\n", flush=True)
+                     print("\n[DEBUG] Raw LLM Answer: (encoding error)\n[DEBUG] End Raw Answer\n", flush=True)
                 
                 def extract_tag(text, start_tag, end_tag):
                     # Try exact tag first
@@ -677,7 +694,7 @@ class RAGEngine:
                 
             except Exception as e:
                 print(f"[RAGEngine] LLM Error: {e}")
-                answer = f"Error: {str(e)}"
+                answer = f"Error: {e!s}"
 
         # POST-PROCESSING: Extract statute references from answer and add citations if missing
         if answer and not citations:
@@ -708,7 +725,7 @@ class RAGEngine:
                             "source": law_name,
                             "section": f"Section {section_num}" if 'Section' in match.group(0) else f"Article {section_num}",
                             "url": url,
-                            "text": f"Referenced in response"
+                            "text": "Referenced in response"
                         })
 
         return {
@@ -776,8 +793,7 @@ class RAGEngine:
         ]
 
         try:
-            # Using model_simple (Mistral) for better reliability during demo
-            return self._call_llm(messages, max_tokens=2000, model_override=self.model_simple)
+            return self._call_llm(messages, max_tokens=2000, timeout=90, model_override=self.model_simple)
         except Exception as e:
             print(f"[RAGEngine] Drafting failed: {e}")
-            return f"Error: Could not generate draft. Reason: {str(e)}"
+            return f"Error: Could not generate draft. Reason: {e!s}"

@@ -1,6 +1,7 @@
-import chromadb
 import os
 import time
+
+import chromadb
 
 print("Testing ChromaDB connection...")
 start = time.time()

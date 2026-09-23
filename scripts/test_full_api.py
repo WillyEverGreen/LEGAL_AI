@@ -1,6 +1,6 @@
-import requests
-import json
 import time
+
+import requests
 
 url = "http://localhost:3001/api/v1/query"
 payload = {

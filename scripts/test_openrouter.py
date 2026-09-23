@@ -1,7 +1,7 @@
 
 import os
+
 import requests
-import json
 from dotenv import load_dotenv
 
 # Load .env
@@ -30,7 +30,7 @@ except Exception as e:
     print(f"Auth Check Failed: {e}")
 
 # Test 2: Chat Completion
-print(f"\n--- Testing Chat Completion (meta-llama/llama-3.1-8b-instruct:free) ---")
+print("\n--- Testing Chat Completion (meta-llama/llama-3.1-8b-instruct:free) ---")
 url = "https://openrouter.ai/api/v1/chat/completions"
 headers = {
     "Authorization": f"Bearer {api_key}",

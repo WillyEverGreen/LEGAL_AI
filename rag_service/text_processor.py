@@ -3,10 +3,10 @@ Advanced Text Processing Module for Legal Documents
 Implements 12-stage text cleaning pipeline, language detection, and multi-modal PDF extraction
 """
 
+import io
 import re
 import unicodedata
-from typing import Tuple, Optional
-import io
+
 
 class TextProcessor:
     """Handles advanced text extraction and cleaning for legal documents"""
@@ -27,7 +27,7 @@ class TextProcessor:
             return 'hi'
         return 'en'
     
-    def extract_text_from_pdf(self, file_content: bytes, filename: str, max_ocr_pages: int = 100) -> Tuple[str, str]:
+    def extract_text_from_pdf(self, file_content: bytes, filename: str, max_ocr_pages: int = 100) -> tuple[str, str]:
         """
         Advanced multi-modal PDF text extraction with automatic fallback
         
@@ -64,7 +64,7 @@ class TextProcessor:
                     print(f"[TextProcessor] Native extraction successful ({len(full_text)} chars)")
                     return full_text, "pymupdf"
                 else:
-                    print(f"[TextProcessor] Native extraction yielded insufficient text. Falling back to OCR...")
+                    print("[TextProcessor] Native extraction yielded insufficient text. Falling back to OCR...")
         
         except Exception as e:
             print(f"[TextProcessor] PyMuPDF failed: {e}. Trying fallback...")
@@ -74,7 +74,7 @@ class TextProcessor:
         try:
             import pypdf
             full_text = ""
-            print(f"[TextProcessor] Trying pypdf extraction...")
+            print("[TextProcessor] Trying pypdf extraction...")
             
             pdf_reader = pypdf.PdfReader(io.BytesIO(file_content))
             for page in pdf_reader.pages:
@@ -101,7 +101,7 @@ class TextProcessor:
                 images = convert_from_bytes(file_content, dpi=300, first_page=1, last_page=max_ocr_pages)
             except Exception as poppler_error:
                 print(f"[TextProcessor] ⚠️ OCR Failed: {poppler_error}. Is Poppler installed and in PATH?")
-                return f"Error: Could not process PDF. Please install Poppler or ensure the PDF is text-readable.", "failed"
+                return "Error: Could not process PDF. Please install Poppler or ensure the PDF is text-readable.", "failed"
 
             full_text = ""
             for i, image in enumerate(images):
@@ -120,7 +120,7 @@ class TextProcessor:
             return "Error: OCR not available. Install pytesseract and pdf2image.", "failed"
         except Exception as e:
             print(f"[TextProcessor] OCR failed: {e}")
-            return f"Error: All extraction methods failed. {str(e)}", "failed"
+            return f"Error: All extraction methods failed. {e!s}", "failed"
     
     def clean_text(self, text: str) -> str:
         """

@@ -6,9 +6,8 @@ Tests all components before optimization
 import os
 import sys
 import time
-import asyncio
+
 import requests
-from typing import Dict, Any
 
 # Add Tesseract to PATH for this session
 tesseract_path = r"C:\Program Files\Tesseract-OCR"

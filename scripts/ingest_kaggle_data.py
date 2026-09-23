@@ -1,8 +1,7 @@
-import os
 import json
+import os
 import random
-from typing import List, Dict, Any
-import io
+from typing import Any
 
 try:
     from pypdf import PdfReader
@@ -46,7 +45,7 @@ def extract_text_from_pdf(filepath: str) -> str:
         print(f"Skipping {filepath}: {e}")
     return text
 
-def analyze_and_format(filename: str, text: str) -> Dict[str, Any] | None:
+def analyze_and_format(filename: str, text: str) -> dict[str, Any] | None:
     """
     Analyzes text to see if it matches our topics and formats it for golden_dataset.json.
     """

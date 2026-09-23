@@ -1,4 +1,3 @@
-import re
 
 # Read the file
 with open('src/pages/ChatPage.tsx', 'r', encoding='utf-8') as f:
