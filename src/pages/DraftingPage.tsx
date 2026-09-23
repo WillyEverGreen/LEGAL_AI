@@ -251,7 +251,7 @@ const DraftingPage = () => {
                                                 size="sm" 
                                                 onClick={() => {
                                                     setDetails(exampleScenarios[draftType] || "");
-                                                    toast(" ✨ Example details filled!");
+                                                    toast.success("Example details filled!");
                                                 }}
                                                 className="h-7 text-xs border-purple-500/30 text-purple-300 hover:bg-purple-500/10 hover:text-purple-200"
                                             >

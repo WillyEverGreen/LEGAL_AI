@@ -1,39 +1,56 @@
 import os
-
+import pathlib
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
+base_path = pathlib.Path(__file__).parent.parent.parent
+load_dotenv(dotenv_path=base_path / ".env")
 
 nvidia_key = os.getenv("NVIDIA_API_KEY")
-openrouter_key = os.getenv("OPENROUTER_API_KEY")
 
-def test_api(name, key, url, model):
+def test_chat(key, model):
     if not key:
-        print(f"Skipping {name}: Key not found in .env")
+        print("Skipping NVIDIA Chat: Key not found in .env")
         return
     
-    print(f"\n--- Testing {name} API Key ---")
+    print(f"\n--- Testing NVIDIA NIM Chat ({model}) ---")
     headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     data = {
         "model": model,
-        "messages": [{"role": "user", "content": "Say 'API Test Success'"}],
-        "max_tokens": 20
+        "messages": [{"role": "user", "content": "Say 'NVIDIA NIM is working!'"}],
+        "max_tokens": 30
     }
     
     try:
-        response = requests.post(url, headers=headers, json=data, timeout=15)
+        response = requests.post("https://integrate.api.nvidia.com/v1/chat/completions", headers=headers, json=data, timeout=15)
         if response.status_code == 200:
-            print(f"[SUCCESS] {name} is WORKING!")
+            print("[SUCCESS] Chat is WORKING!")
             print("Response:", response.json()['choices'][0]['message']['content'])
         else:
-            print(f"[FAILED] {name} failed with status {response.status_code}")
-            print("Error details:", response.text)
+            print(f"[FAILED] Chat failed with status {response.status_code}: {response.text}")
     except Exception as e:
-        print(f"[ERROR] {name} error: {e}")
+        print(f"[ERROR] Chat error: {e}")
 
-# Test NVIDIA 70B
-test_api("NVIDIA NIM 70B", nvidia_key, "https://integrate.api.nvidia.com/v1/chat/completions", "meta/llama-3.1-70b-instruct")
+def test_embedding(key, model):
+    if not key:
+        print("Skipping NVIDIA Embedding: Key not found in .env")
+        return
+    
+    print(f"\n--- Testing NVIDIA NIM Embedding ({model}) ---")
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    data = {"input": ["Test legal embedding"], "model": model}
+    
+    try:
+        response = requests.post("https://integrate.api.nvidia.com/v1/embeddings", headers=headers, json=data, timeout=15)
+        if response.status_code == 200:
+            dim = len(response.json()['data'][0]['embedding'])
+            print(f"[SUCCESS] Embeddings WORKING! (dimension: {dim})")
+        else:
+            print(f"[FAILED] Embedding failed with status {response.status_code}: {response.text}")
+    except Exception as e:
+        print(f"[ERROR] Embedding error: {e}")
 
-# Test OpenRouter
-test_api("OpenRouter", openrouter_key, "https://openrouter.ai/api/v1/chat/completions", "mistralai/mistral-7b-instruct")
+if __name__ == "__main__":
+    test_chat(nvidia_key, "meta/llama-3.2-11b-vision-instruct")
+    test_embedding(nvidia_key, "nvidia/nemotron-3-embed-1b")
+

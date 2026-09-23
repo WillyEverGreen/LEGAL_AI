@@ -9,7 +9,7 @@ import os
 import chromadb
 from chromadb.config import Settings
 
-BASE_DIR = "d:/HACATHONS/RUBIX TSEC/legal-compass-ai-main"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "rag_service/data")
 CHROMA_DIR = os.path.join(BASE_DIR, "rag_service/chroma_db")
 

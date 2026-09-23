@@ -51,7 +51,7 @@ def clean_bns_text(raw_text):
     return text.strip()
 
 def main():
-    base_dir = "d:/HACATHONS/RUBIX TSEC/legal-compass-ai-main"
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     ipc_csv_path = os.path.join(base_dir, "datasets resources/ipc_sections.csv")
     bns_csv_path = os.path.join(base_dir, "datasets resources/bns_sections.csv")
     mapping_json_path = os.path.join(base_dir, "rag_service/data/ipc_bns_mapping.json")

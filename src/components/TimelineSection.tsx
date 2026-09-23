@@ -1,6 +1,6 @@
 import React from "react";
 import { Timeline } from "@/components/ui/timeline";
-import { CheckCircle2, Check, ArrowRight, Zap, Target, BookOpen, Server } from "lucide-react";
+import { CheckCircle2, Check, X, ArrowRight, Zap, Target, BookOpen, Server } from "lucide-react";
 
 export default function TimelineSection() {
   const data = [
@@ -14,28 +14,36 @@ export default function TimelineSection() {
               </p>
               <div className="flex flex-col gap-4">
                 <div className="flex gap-3 items-start text-[#f8f8f8]/80">
-                  <span className="mt-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-red-500/20 text-red-400 text-xs">✕</span>
+                  <div className="mt-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-red-500/20 text-red-400">
+                    <X size={12} strokeWidth={3} />
+                  </div>
                   <div>
                     <span className="block text-sm font-semibold text-red-400">Statutory Complexity</span>
                     <span className="text-xs text-[#f8f8f8]/60">Transition from IPC to BNS makes comparison difficult and error-prone.</span>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start text-[#f8f8f8]/80">
-                  <span className="mt-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-red-500/20 text-red-400 text-xs">✕</span>
+                  <div className="mt-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-red-500/20 text-red-400">
+                    <X size={12} strokeWidth={3} />
+                  </div>
                   <div>
                     <span className="block text-sm font-semibold text-red-400">Case Law Overload</span>
                     <span className="text-xs text-[#f8f8f8]/60">Identifying relevant Supreme Court and High Court judgments is time-consuming.</span>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start text-[#f8f8f8]/80">
-                  <span className="mt-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-red-500/20 text-red-400 text-xs">✕</span>
+                  <div className="mt-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-red-500/20 text-red-400">
+                    <X size={12} strokeWidth={3} />
+                  </div>
                   <div>
                     <span className="block text-sm font-semibold text-red-400">Accessibility Gap</span>
                     <span className="text-xs text-[#f8f8f8]/60">Legal language and English-only resources exclude citizens.</span>
                   </div>
                 </div>
                 <div className="flex gap-3 items-start text-[#f8f8f8]/80">
-                   <span className="mt-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-red-500/20 text-red-400 text-xs">✕</span>
+                   <div className="mt-1 flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-red-500/20 text-red-400">
+                     <X size={12} strokeWidth={3} />
+                   </div>
                    <div>
                     <span className="block text-sm font-semibold text-red-400">Verification Challenge</span>
                     <span className="text-xs text-[#f8f8f8]/60">Trustworthy, citable legal sources are scattered.</span>

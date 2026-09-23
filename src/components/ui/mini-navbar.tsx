@@ -110,7 +110,7 @@ export function Navbar({ autoHide = false }: { autoHide?: boolean }) {
                        pl-4 pr-4 py-3 backdrop-blur-md
                        ${headerShapeClass}
                        border border-white/10 bg-black/50
-                       w-[calc(100%-2rem)] sm:w-auto min-w-[320px] sm:min-w-[800px]
+                       w-[calc(100%-2rem)] sm:w-auto max-w-5xl sm:min-w-[800px]
                        transition-all duration-300 ease-in-out shadow-2xl
                        ${autoHide && !sidebarVisible ? '-translate-y-[150%] opacity-0 pointer-events-none' : 'translate-y-0 opacity-100 pointer-events-auto'}
                        `}

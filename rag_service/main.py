@@ -82,13 +82,13 @@ async def query_rag(request: QueryRequest):
             if any(word in query_lower for word in ['hello', 'hi', 'hey', 'namaste', 'pranam', 'halo']):
                 if request.language == 'hi':
                     return {
-                        "answer": "नमस्ते! 👋 मैं **LegalAi** हूँ, आपका भारतीय कानूनी सहायक।\n\nमेरी विशेषज्ञता:\n- 🏛️ **आपराधिक कानून** (IPC/BNS)\n- 💻 **आईटी और साइबर कानून**\n- 🏢 **कॉर्पोरेट कानून**\n- 🛡️ **उपभोक्ता कानून**\n- 🚗 **परिवहन कानून**\n\nआज मैं आपकी कैसे मदद कर सकता हूँ?",
+                        "answer": "नमस्ते! मैं **LegalAi** हूँ, आपका भारतीय कानूनी सहायक।\n\nमेरी विशेषज्ञता:\n- **आपराधिक कानून** (IPC/BNS)\n- **आईटी और साइबर कानून**\n- **कॉर्पोरेट कानून**\n- **उपभोक्ता कानून**\n- **परिवहन कानून**\n\nआज मैं आपकी कैसे मदद कर सकता हूँ?",
                         "citations": [],
                         "related_judgments": []
                     }
                 else:
                     return {
-                        "answer": "Hello! 👋 I'm **LegalAi**, your Indian legal assistant.\n\nI specialize in:\n- 🏛️ **Criminal Law** (IPC/BNS)\n- 💻 **IT & Cyber Law**\n- 🏢 **Corporate Law**\n- 🛡️ **Consumer Law**\n- 🚗 **Transport Law**\n\nHow can I help you today?",
+                        "answer": "Hello! I'm **LegalAi**, your Indian legal assistant.\n\nI specialize in:\n- **Criminal Law** (IPC/BNS)\n- **IT & Cyber Law**\n- **Corporate Law**\n- **Consumer Law**\n- **Transport Law**\n\nHow can I help you today?",
                         "citations": [],
                         "related_judgments": []
                     }
@@ -121,13 +121,13 @@ async def query_rag(request: QueryRequest):
             elif any(word in query_lower for word in ['thank', 'thanks', 'dhanyavad', 'shukriya']):
                 if request.language == 'hi':
                     return {
-                        "answer": "आपका स्वागत है! 😊 अगर आपके पास और कानूनी प्रश्न हैं तो बेझिझक पूछें।",
+                        "answer": "आपका स्वागत है! अगर आपके पास और कानूनी प्रश्न हैं तो बेझिझक पूछें।",
                         "citations": [],
                         "related_judgments": []
                     }
                 else:
                     return {
-                        "answer": "You're welcome! 😊 Feel free to ask if you have more legal questions.",
+                        "answer": "You're welcome! Feel free to ask if you have more legal questions.",
                         "citations": [],
                         "related_judgments": []
                     }

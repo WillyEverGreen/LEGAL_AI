@@ -10,7 +10,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-BASE_DIR = "d:/HACATHONS/RUBIX TSEC/legal-compass-ai-main"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "rag_service/data")
 DATASETS_DIR = os.path.join(BASE_DIR, "datasets resources")
 

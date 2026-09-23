@@ -6,7 +6,7 @@ Extracts full sections from Companies Act, Consumer Protection Act, Motor Vehicl
 import json
 import os
 
-BASE_DIR = "d:/HACATHONS/RUBIX TSEC/legal-compass-ai-main"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.path.join(BASE_DIR, "rag_service/data")
 
 class LegalActExtractor:

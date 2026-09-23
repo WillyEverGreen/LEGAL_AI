@@ -7,7 +7,7 @@ import CTASection from "@/components/CTASection";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-[#09090B] text-white selection:bg-purple-500/30">
+    <div className="min-h-screen bg-[#09090B] text-white selection:bg-purple-500/30 overflow-x-hidden">
       <Header />
       <HeroSection />
       <FeaturesGridBento />

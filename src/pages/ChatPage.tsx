@@ -5,7 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Loader2, Scale, Zap, BookOpen, Mic, MicOff, Download, Sparkles, Send, Menu, Plus, Trash2, MessageSquare, ExternalLink, Volume2, VolumeX } from "lucide-react";
+import { Loader2, Scale, Zap, BookOpen, Mic, MicOff, Download, Sparkles, Send, Menu, Plus, Trash2, MessageSquare, ExternalLink, Volume2, VolumeX, ShieldAlert, ShoppingBag, AlertTriangle, FileText } from "lucide-react";
 import Header from "@/components/Header";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
@@ -41,10 +41,10 @@ interface Message {
 }
 
 const QUICK_PROMPTS = [
-    { text: "Punishment for Murder 🔪", query: "Punishment for murder under BNS" },
-    { text: "File Consumer Complaint 🛒", query: "How to file a consumer complaint" },
-    { text: "Check Cheating Laws 🤥", query: "Punishment for cheating" },
-    { text: "Draft Rent Agreement 🏠", query: "Essentials of a rent agreement" }
+    { label: "Punishment for Murder", query: "Punishment for murder under BNS", tag: "BNS §103", icon: ShieldAlert },
+    { label: "File Consumer Complaint", query: "How to file a consumer complaint", tag: "Consumer Act", icon: ShoppingBag },
+    { label: "Check Cheating Laws", query: "Punishment for cheating", tag: "BNS §318", icon: AlertTriangle },
+    { label: "Draft Rent Agreement", query: "Essentials of a rent agreement", tag: "Contracts", icon: FileText }
 ];
 
 const LOADING_TEXTS = [
@@ -75,7 +75,12 @@ const ChatPage = () => {
     timestamp: number;
   }>>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768;
+    }
+    return false;
+  });
 
   // Text-to-speech state
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -119,18 +124,14 @@ const ChatPage = () => {
 
   // Text-to-speech functions
   const handleReadAloud = (text: string, messageIndex: number) => {
-    console.log('🔊 Read Aloud clicked!', { text: text.substring(0, 50), messageIndex });
-    
     // Check browser support
     if (!('speechSynthesis' in window)) {
-      console.error('❌ Speech Synthesis not supported in this browser');
       alert('Text-to-speech is not supported in your browser. Please use Chrome, Edge, or Safari.');
       return;
     }
 
     // If already speaking this message, stop it
     if (isSpeaking && speakingMessageIndex === messageIndex) {
-      console.log('⏹️ Stopping speech...');
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
       setSpeakingMessageIndex(null);
@@ -170,37 +171,31 @@ const ChatPage = () => {
 
         if (femaleVoice) {
           utterance.voice = femaleVoice;
-          console.log('🎙️ Using voice:', femaleVoice.name);
         }
 
         utterance.rate = 0.85; // Slower, softer pace
         utterance.pitch = 1.1; // Slightly higher pitch for softer sound
         utterance.volume = 0.9; // Slightly softer volume
 
-        console.log('🎤 Starting speech synthesis...');
-
         // Event handlers
         utterance.onstart = () => {
-          console.log('✅ Speech started!');
           setIsSpeaking(true);
           setSpeakingMessageIndex(messageIndex);
         };
 
         utterance.onend = () => {
-          console.log('🏁 Speech ended');
           setIsSpeaking(false);
           setSpeakingMessageIndex(null);
         };
 
         utterance.onerror = (event) => {
-          console.error('❌ Speech error:', event);
+          console.error('Speech synthesis error:', event);
           setIsSpeaking(false);
           setSpeakingMessageIndex(null);
         };
 
         speechSynthesisRef.current = utterance;
         window.speechSynthesis.speak(utterance);
-        console.log('📢 Speech queued');
       }
     }, 100); // 100ms delay to prevent interruption
   };
@@ -489,9 +484,18 @@ const ChatPage = () => {
       <Header autoHide />
       
       {/* Main Layout Container */}
-      <div className="flex-1 flex overflow-hidden pt-0">
+      <div className="flex-1 flex overflow-hidden pt-0 relative">
         
-        {/* Sidebar - Now a direct child of the flex container */}
+        {/* Mobile Backdrop */}
+        {sidebarOpen && (
+          <div 
+            onClick={() => setSidebarOpen(false)}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-30 md:hidden transition-opacity"
+            aria-label="Close sidebar"
+          />
+        )}
+
+        {/* Sidebar */}
         <AnimatePresence mode="wait">
           {sidebarOpen && (
             <motion.aside
@@ -499,7 +503,7 @@ const ChatPage = () => {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -280, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="w-[260px] bg-[#0c0c0e] border-r border-[#27272a] flex flex-col shrink-0 z-20"
+              className="fixed md:static inset-y-0 left-0 w-[270px] bg-[#0c0c0e] border-r border-[#27272a] flex flex-col shrink-0 z-40 h-full shadow-2xl md:shadow-none"
             >
               <div className="p-3">
                 <Button
@@ -519,7 +523,10 @@ const ChatPage = () => {
                        {conversations.map((conv) => (
                          <div
                            key={conv.id}
-                           onClick={() => switchConversation(conv.id)}
+                           onClick={() => {
+                             switchConversation(conv.id);
+                             if (window.innerWidth < 768) setSidebarOpen(false);
+                           }}
                            className={cn(
                              "group relative flex items-center gap-2 px-3 py-2.5 rounded-md cursor-pointer transition-colors text-sm",
                              activeConversationId === conv.id 
@@ -554,44 +561,46 @@ const ChatPage = () => {
 
         {/* Main Chat Area */}
         <main className="flex-1 flex flex-col relative min-w-0 bg-[#09090b]">
-           {/* Subtle Background Gradients */}
-           {/* Subtle Background Gradients - Removed as per user request */}
-           {/* <div className="absolute inset-0 pointer-events-none overflow-hidden">
-               <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-purple-900/10 rounded-full blur-[120px]" />
-               <div className="absolute bottom-0 left-1/4 w-[500px] h-[500px] bg-blue-900/10 rounded-full blur-[120px]" />
-           </div> */}
-
            {/* Mobile Sidebar Toggle */}
            {!sidebarOpen && (
              <Button
                variant="ghost"
                size="icon"
                onClick={() => setSidebarOpen(true)}
-               className="absolute top-4 left-4 z-30 text-gray-400 hover:text-white hover:bg-[#27272a]"
+               className="absolute top-3 left-3 z-20 text-gray-400 hover:text-white hover:bg-[#27272a] md:hidden"
              >
                <Menu className="h-5 w-5" />
              </Button>
            )}
 
-           {/* Top Controls Bar - Simplified */}
-           <div className="w-full border-b border-[#27272a] px-6 py-3 flex items-center justify-end gap-3 bg-[#09090b]/80 backdrop-blur-sm z-10">
-               {sidebarOpen && (
+           {/* Top Controls Bar */}
+           <div className="w-full border-b border-[#27272a] px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between sm:justify-end gap-2 sm:gap-3 bg-[#09090b]/80 backdrop-blur-sm z-10 overflow-x-auto no-scrollbar">
+               {sidebarOpen ? (
                  <Button
                    variant="ghost"
                    size="icon"
                    onClick={() => setSidebarOpen(false)}
-                   className="mr-auto text-gray-400 hover:text-white"
+                   className="mr-auto text-gray-400 hover:text-white hidden md:inline-flex"
+                 >
+                   <Menu className="h-5 w-5" />
+                 </Button>
+               ) : (
+                 <Button
+                   variant="ghost"
+                   size="icon"
+                   onClick={() => setSidebarOpen(true)}
+                   className="mr-auto text-gray-400 hover:text-white hidden md:inline-flex"
                  >
                    <Menu className="h-5 w-5" />
                  </Button>
                )}
                
-               <div className="flex items-center gap-1 bg-[#18181b] p-1 rounded-lg border border-[#27272a]">
+               <div className="flex items-center gap-1 bg-[#18181b] p-1 rounded-lg border border-[#27272a] shrink-0">
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => setArgumentsMode(!argumentsMode)}
-                    className={cn("h-7 px-3 text-xs rounded-md transition-all", argumentsMode ? "bg-purple-500/10 text-purple-400" : "text-gray-400 hover:text-white")}
+                    className={cn("h-7 px-2.5 sm:px-3 text-xs rounded-md transition-all", argumentsMode ? "bg-purple-500/10 text-purple-400 font-medium" : "text-gray-400 hover:text-white")}
                   >
                      <Zap className="w-3 h-3 mr-1.5" /> Args
                   </Button>
@@ -599,17 +608,16 @@ const ChatPage = () => {
                     variant="ghost" 
                     size="sm" 
                     onClick={() => setAnalysisMode(!analysisMode)}
-                    className={cn("h-7 px-3 text-xs rounded-md transition-all", analysisMode ? "bg-blue-500/10 text-blue-400" : "text-gray-400 hover:text-white")}
+                    className={cn("h-7 px-2.5 sm:px-3 text-xs rounded-md transition-all", analysisMode ? "bg-blue-500/10 text-blue-400 font-medium" : "text-gray-400 hover:text-white")}
                   >
                      <Scale className="w-3 h-3 mr-1.5" /> Analysis
                   </Button>
                </div>
 
-
-               <div className="h-4 w-px bg-[#27272a]" />
+               <div className="h-4 w-px bg-[#27272a] shrink-0" />
 
                {/* Language Toggle */}
-               <div className="flex items-center gap-1 bg-[#18181b] p-1 rounded-lg border border-[#27272a]">
+               <div className="flex items-center gap-1 bg-[#18181b] p-1 rounded-lg border border-[#27272a] shrink-0">
                    <Button 
                      variant="ghost" 
                      size="sm" 
@@ -628,23 +636,23 @@ const ChatPage = () => {
                    </Button>
                </div>
                
-               <div className="h-4 w-px bg-[#27272a]" />
+               <div className="h-4 w-px bg-[#27272a] shrink-0" />
 
                <Button 
                    variant="ghost" 
                    size="sm"
                    onClick={exportFullChat}
                    disabled={messages.length === 0}
-                   className="text-gray-400 hover:text-white"
+                   className="text-gray-400 hover:text-white shrink-0"
                    title="Export Full Chat to PDF"
                 >
                    <Download className="w-4 h-4" />
                 </Button>
 
-                <div className="h-4 w-px bg-[#27272a]" />
+                <div className="h-4 w-px bg-[#27272a] shrink-0 hidden sm:block" />
 
                <Select value={domain} onValueChange={setDomain}>
-                   <SelectTrigger className="w-[130px] h-8 bg-transparent border-none text-xs text-gray-300 focus:ring-0">
+                   <SelectTrigger className="w-[110px] sm:w-[130px] h-8 bg-transparent border-none text-xs text-gray-300 focus:ring-0 shrink-0">
                        <SelectValue placeholder="Domain" />
                    </SelectTrigger>
                    <SelectContent className="bg-[#18181b] border-[#27272a] text-gray-300">
@@ -656,34 +664,50 @@ const ChatPage = () => {
            </div>
 
            {/* Messages List */}
-           <div className="flex-1 overflow-y-auto p-4 sm:p-6 scroll-smooth">
+           <div className="flex-1 overflow-y-auto p-3 sm:p-6 scroll-smooth">
               <div className="max-w-3xl mx-auto space-y-6 pb-4">
                   <AnimatePresence mode="popLayout">
                       {messages.length === 0 && (
                           <motion.div 
                               initial={{ opacity: 0, scale: 0.95 }}
                               animate={{ opacity: 1, scale: 1 }}
-                              className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4"
+                              className="min-h-[55vh] flex flex-col items-center justify-center text-center px-4"
                           >
-                              <div className="w-16 h-16 bg-[#18181b] rounded-2xl flex items-center justify-center mb-6 border border-[#27272a] shadow-xl">
-                                  <Sparkles className="w-8 h-8 text-purple-500" />
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#18181b] rounded-2xl flex items-center justify-center mb-5 border border-[#27272a] shadow-xl">
+                                  <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-purple-400" />
                               </div>
-                              <h2 className="text-xl font-medium text-white mb-2">LegalAi</h2>
-                              <p className="text-gray-500 max-w-sm mb-8 text-sm leading-relaxed">
-                                  Your advanced legal research assistant. Ask about IPC, BNS, or analyze specific cases.
+                              <h2 className="text-xl sm:text-2xl font-semibold text-white mb-2">LegalAi Research</h2>
+                              <p className="text-gray-400 max-w-sm mb-8 text-xs sm:text-sm leading-relaxed">
+                                  Your advanced legal intelligence assistant. Ask questions, compare statutes, or verify case citations.
                               </p>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
-                                  {QUICK_PROMPTS.map((prompt, idx) => (
-                                      <button 
-                                          key={idx}
-                                          onClick={() => handleSend(prompt.query)}
-                                          className="text-left p-3 rounded-lg bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] hover:border-gray-600 transition-all group"
-                                      >
-                                          <span className="text-sm text-gray-300 group-hover:text-white transition-colors">
-                                              {prompt.text}
-                                          </span>
-                                      </button>
-                                  ))}
+                                  {QUICK_PROMPTS.map((prompt, idx) => {
+                                      const PromptIcon = prompt.icon;
+                                      return (
+                                          <button 
+                                              key={idx}
+                                              onClick={() => handleSend(prompt.query)}
+                                              className="text-left p-3.5 rounded-xl bg-[#141416] border border-[#27272a] hover:bg-[#1e1e22] hover:border-purple-500/40 transition-all group flex items-start gap-3"
+                                          >
+                                              <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-400 group-hover:scale-105 transition-transform shrink-0 mt-0.5">
+                                                  <PromptIcon className="w-4 h-4" />
+                                              </div>
+                                              <div className="flex-1 min-w-0">
+                                                  <div className="flex items-center justify-between gap-1 mb-1">
+                                                      <span className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors truncate">
+                                                          {prompt.label}
+                                                      </span>
+                                                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5 shrink-0">
+                                                          {prompt.tag}
+                                                      </span>
+                                                  </div>
+                                                  <p className="text-xs text-gray-500 truncate group-hover:text-gray-400 transition-colors">
+                                                      {prompt.query}
+                                                  </p>
+                                              </div>
+                                          </button>
+                                      );
+                                  })}
                               </div>
                           </motion.div>
                       )}

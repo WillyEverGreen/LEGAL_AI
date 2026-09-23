@@ -8,5 +8,3 @@ pypdf
 pytesseract>=0.3.10
 pymupdf>=1.23.0
 pdf2image>=1.16.0
-cloudscraper>=1.2.71
-beautifulsoup4>=4.12.0
