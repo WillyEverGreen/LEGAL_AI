@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -56,6 +57,7 @@ const LOADING_TEXTS = [
 ];
 
 const ChatPage = () => {
+  const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [language, setLanguage] = useState<'en' | 'hi'>('en');
@@ -122,8 +124,23 @@ const ChatPage = () => {
     };
   }, []);
 
+  // Text-to-speech helper to strip raw markdown and URLs for natural speaking
+  const cleanSpeechText = (rawText: string) => {
+    return rawText
+      .replace(/https?:\/\/\S+/gi, '') // Strip URLs
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [Text](URL) -> Text
+      .replace(/#{1,6}\s/g, '') // Strip headers
+      .replace(/\*\*([^*]+)\*\*/g, '$1') // Bold
+      .replace(/\*([^*]+)\*/g, '$1') // Italic
+      .replace(/`([^`]+)`/g, '$1') // Code
+      .replace(/^[-*•]\s+/gm, '') // Bullet points
+      .replace(/\|.*?\|/g, '') // Tables
+      .replace(/\n+/g, '. ') // Paragraphs to full stops for natural speech rhythm
+      .trim();
+  };
+
   // Text-to-speech functions
-  const handleReadAloud = (text: string, messageIndex: number) => {
+  const handleReadAloud = (rawText: string, messageIndex: number) => {
     // Check browser support
     if (!('speechSynthesis' in window)) {
       alert('Text-to-speech is not supported in your browser. Please use Chrome, Edge, or Safari.');
@@ -140,6 +157,8 @@ const ChatPage = () => {
 
     // Stop any ongoing speech
     window.speechSynthesis.cancel();
+    const textToSpeak = cleanSpeechText(rawText);
+    if (!textToSpeak) return;
 
     // Small delay to prevent interruption error
     setTimeout(() => {
@@ -157,25 +176,24 @@ const ChatPage = () => {
       }
 
       function startSpeaking(voices: SpeechSynthesisVoice[]) {
-        // Create new utterance
-        const utterance = new SpeechSynthesisUtterance(text);
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
         
-        // Select a female voice (prefer Google US English Female or similar)
-        const femaleVoice = voices.find(
-          voice => voice.name.includes('Female') || 
-                   voice.name.includes('Google') && voice.name.includes('US') ||
+        // Select female or natural English voice
+        const naturalVoice = voices.find(
+          voice => voice.name.includes('Natural') ||
+                   voice.name.includes('Google') ||
                    voice.name.includes('Samantha') || 
                    voice.name.includes('Zira') ||
-                   voice.name.includes('Microsoft') && voice.name.includes('Female')
-        ) || voices.find(voice => voice.lang.startsWith('en'));
+                   voice.name.includes('Female')
+        ) || voices.find(voice => voice.lang.startsWith(language === 'hi' ? 'hi' : 'en'));
 
-        if (femaleVoice) {
-          utterance.voice = femaleVoice;
+        if (naturalVoice) {
+          utterance.voice = naturalVoice;
         }
 
-        utterance.rate = 0.85; // Slower, softer pace
-        utterance.pitch = 1.1; // Slightly higher pitch for softer sound
-        utterance.volume = 0.9; // Slightly softer volume
+        utterance.rate = 0.9;
+        utterance.pitch = 1.05;
+        utterance.volume = 1.0;
 
         // Event handlers
         utterance.onstart = () => {
@@ -197,7 +215,7 @@ const ChatPage = () => {
         speechSynthesisRef.current = utterance;
         window.speechSynthesis.speak(utterance);
       }
-    }, 100); // 100ms delay to prevent interruption
+    }, 100);
   };
 
   useEffect(() => {
@@ -236,140 +254,214 @@ const ChatPage = () => {
     } else {
       alert("Voice input is not supported in this browser.");
     }
-  };
-
-  const getKanoonLink = (source: string, section: string) => {
-      // Create a smart search query for Indian Kanoon
-      const query = encodeURIComponent(`${source} ${section}`);
-      return `https://indiankanoon.org/search/?formInput=${query}`;
-  };
-
-  const exportPDF = (msg: Message, query: string) => {
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(20);
-    doc.setTextColor(40, 40, 40);
-    doc.text("LegalAi - Research Report", 15, 20);
-    
-    // Metadata
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Date: ${new Date().toLocaleDateString()} | Domain: ${domain}`, 15, 28);
-    
-    // Query
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Query: ${query}`, 15, 40);
-    
-    // Content
-    doc.setFontSize(11);
-    
-    // Improved simple text cleaner for PDF
-    const cleanText = (text: string) => {
-        return text
-            .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
-            .replace(/\*(.*?)\*/g, '$1')     // Italic
-            .replace(/##/g, '')              // Headings
-            .replace(/^#\s/gm, '')           // H1
-            .replace(/^-\s/gm, '• ')         // Bullets
-            .trim();
-    };
-
-    const splitText = doc.splitTextToSize(cleanText(msg.content), 180);
-    doc.text(splitText, 15, 50);
-    
-    let yPos = 50 + (splitText.length * 7);
-
-    // Citations
-    if (msg.citations && msg.citations.length > 0) {
-        doc.addPage(); // Force new page for citations
-        yPos = 20;     // Reset Y position
-        
-        doc.setFontSize(14);
-        doc.setTextColor(40, 40, 40);
-        doc.text("Legal Citations", 15, yPos);
-        yPos += 10;
-        
-        const citationData = msg.citations.map(c => [c.source, c.section, c.text]);
-        autoTable(doc, {
-            startY: yPos,
-            head: [['Source', 'Section', 'Text']],
-            body: citationData,
-            theme: 'grid'
-        });
-        interface JsPDFWithAutoTable extends jsPDF {
-            lastAutoTable: { finalY: number };
-        }
-        yPos = (doc as JsPDFWithAutoTable).lastAutoTable.finalY + 10;
+  };  const getKanoonLink = (source?: string, section?: string, directUrl?: string) => {
+    if (directUrl && (directUrl.startsWith("http://") || directUrl.startsWith("https://"))) {
+      return directUrl;
     }
+    const cleanSource = (source || "")
+      .replace(/^Statute$/i, "")
+      .replace(/null|undefined/gi, "")
+      .trim();
+    const cleanSection = (section || "")
+      .replace(/Section\s+Section/gi, "Section")
+      .replace(/null|undefined/gi, "")
+      .trim();
+    const query = [cleanSource, cleanSection].filter(Boolean).join(" ");
+    return `https://indiankanoon.org/search/?formInput=${encodeURIComponent(query || "Indian Law Statute")}`;
+  };
 
-    // Disclaimer
-    doc.setFontSize(8);
-    doc.setTextColor(150, 150, 150);
-    doc.text("Disclaimer: Provide for informational purposes only. Not legal advice.", 15, 280);
-    
-    doc.save("legal-research-report.pdf");
+  const cleanPdfText = (text: string) => {
+    return text
+      .replace(/https?:\/\/\S+/gi, '') // Strip URLs
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [Text](URL) -> Text
+      .replace(/\*\*([^*]+)\*\*/g, '$1') // Bold
+      .replace(/\*([^*]+)\*/g, '$1')     // Italic
+      .replace(/#{1,6}\s/g, '')          // Headings
+      .replace(/`([^`]+)`/g, '$1')       // Inline code
+      .replace(/^[-*•]\s+/gm, '• ')      // Normalize bullets
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
+  const exportPDF = (msg: Message, queryTitle: string) => {
+    try {
+      const doc = new jsPDF();
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+      
+      // Top Header Banner
+      doc.setFillColor(18, 18, 22);
+      doc.rect(0, 0, pageWidth, 28, 'F');
+      
+      doc.setFontSize(16);
+      doc.setTextColor(255, 255, 255);
+      doc.text("LegalAi Research Report", 15, 18);
+      
+      doc.setFontSize(9);
+      doc.setTextColor(180, 180, 190);
+      doc.text(`Date: ${new Date().toLocaleDateString()} | Domain: ${domain.toUpperCase()}`, 15, 24);
+      
+      let yPos = 36;
+      
+      // Query Box
+      doc.setFillColor(245, 245, 248);
+      doc.roundedRect(15, yPos, pageWidth - 30, 14, 2, 2, 'F');
+      doc.setFontSize(10);
+      doc.setTextColor(40, 40, 50);
+      doc.text(`Query: ${queryTitle || "Indian Legal Research"}`, 18, yPos + 9);
+      yPos += 22;
+      
+      // Content with safe line-by-line pagination
+      doc.setFontSize(10);
+      doc.setTextColor(30, 30, 30);
+      const cleaned = cleanPdfText(msg.content);
+      const splitText = doc.splitTextToSize(cleaned, 180);
+      const lineHeight = 5.5;
+      
+      splitText.forEach((line: string) => {
+        if (yPos > pageHeight - 25) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.text(line, 15, yPos);
+        yPos += lineHeight;
+      });
+      
+      // Citations Table
+      if (msg.citations && msg.citations.length > 0) {
+        if (yPos > pageHeight - 50) {
+          doc.addPage();
+          yPos = 20;
+        } else {
+          yPos += 8;
+        }
+        
+        doc.setFontSize(12);
+        doc.setTextColor(30, 30, 40);
+        doc.text("Statutory Citations & Precedents", 15, yPos);
+        yPos += 6;
+        
+        const citationData = msg.citations.map(c => [
+          c.source || "Statute",
+          (c.section || "").replace(/null/gi, "Provision"),
+          (c.text || "").replace(/---/g, "").slice(0, 140)
+        ]);
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Source', 'Section', 'Summary']],
+          body: citationData,
+          theme: 'grid',
+          headStyles: { fillColor: [40, 35, 60] },
+          styles: { fontSize: 8 }
+        });
+      }
+      
+      // Footer across all generated pages
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(130, 130, 140);
+        doc.text(`LegalAi Research Report • Page ${i} of ${totalPages} • Informational only`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      }
+      
+      doc.save(`LegalAi_Report_${Date.now()}.pdf`);
+      toast({
+        title: "Report Exported",
+        description: "PDF report downloaded successfully."
+      });
+    } catch (err: any) {
+      console.error("PDF export error:", err);
+      toast({
+        title: "Export Failed",
+        description: "Could not generate PDF. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const exportFullChat = () => {
-    const doc = new jsPDF();
-    
-    // Header
-    doc.setFontSize(22);
-    doc.setTextColor(40, 40, 40);
-    doc.text("LegalAi - Conversation History", 15, 20);
-    
-    // Metadata
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text(`Date: ${new Date().toLocaleDateString()} | Domain: ${domain}`, 15, 28);
-    
-    let yPos = 40;
-    
-    messages.forEach((msg) => {
-        // Page break check
-        if (yPos > 250) { 
-            doc.addPage(); 
-            yPos = 20; 
+    try {
+      const doc = new jsPDF();
+      const pageHeight = doc.internal.pageSize.height;
+      const pageWidth = doc.internal.pageSize.width;
+      
+      // Header Banner
+      doc.setFillColor(18, 18, 22);
+      doc.rect(0, 0, pageWidth, 28, 'F');
+      
+      doc.setFontSize(16);
+      doc.setTextColor(255, 255, 255);
+      doc.text("LegalAi Conversation History", 15, 18);
+      
+      doc.setFontSize(9);
+      doc.setTextColor(180, 180, 190);
+      doc.text(`Date: ${new Date().toLocaleDateString()} | Domain: ${domain.toUpperCase()} | Messages: ${messages.length}`, 15, 24);
+      
+      let yPos = 38;
+      const lineHeight = 5.5;
+      
+      messages.forEach((msg) => {
+        if (yPos > pageHeight - 35) {
+          doc.addPage();
+          yPos = 20;
         }
         
-        // Role Header
-        doc.setFontSize(12);
-        if (msg.role === 'user') {
-            doc.setTextColor(0, 50, 150); // Muted Blue
-            doc.text("You:", 15, yPos);
-        } else {
-            doc.setTextColor(100, 0, 150); // Muted Purple
-            doc.text("LegalAi:", 15, yPos);
-        }
-        yPos += 7;
-        
-        // Content
+        // Sender Label
         doc.setFontSize(11);
-        doc.setTextColor(0, 0, 0);
+        if (msg.role === 'user') {
+          doc.setTextColor(30, 80, 180);
+          doc.text("You:", 15, yPos);
+        } else {
+          doc.setTextColor(120, 40, 180);
+          doc.text("LegalAi Assistant:", 15, yPos);
+        }
+        yPos += 6;
         
-        // Robust markdown stripping for full chat
-        const cleanContent = msg.content
-            .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
-            .replace(/\*(.*?)\*/g, '$1')     // Italic
-            .replace(/##/g, '')              // Headings
-            .replace(/^#\s/gm, '')           // H1
-            .replace(/^-\s/gm, '• ')         // Bullets
-            .trim();
-
+        // Message Content
+        doc.setFontSize(10);
+        doc.setTextColor(40, 40, 40);
+        const cleanContent = cleanPdfText(msg.content);
         const splitText = doc.splitTextToSize(cleanContent, 180);
-        doc.text(splitText, 15, yPos);
         
-        // Calculate new Y position based on text height
-        yPos += (splitText.length * 5) + 10;
+        splitText.forEach((line: string) => {
+          if (yPos > pageHeight - 25) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(line, 15, yPos);
+          yPos += lineHeight;
+        });
         
-        // Separator line
-        doc.setDrawColor(230, 230, 230);
-        doc.line(15, yPos - 5, 195, yPos - 5);
-    });
-    
-    doc.save("legal-compass-full-chat.pdf");
+        yPos += 4;
+        doc.setDrawColor(230, 230, 235);
+        doc.line(15, yPos, 195, yPos);
+        yPos += 8;
+      });
+      
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(130, 130, 140);
+        doc.text(`LegalAi Conversation Transcript • Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      }
+      
+      doc.save(`LegalAi_Chat_${Date.now()}.pdf`);
+      toast({
+        title: "Chat Exported",
+        description: "Complete chat history downloaded as PDF."
+      });
+    } catch (err: any) {
+      console.error("Full chat export error:", err);
+      toast({
+        title: "Export Failed",
+        description: "Could not export chat history.",
+        variant: "destructive"
+      });
+    }
   };
 
   // Conversation management functions
@@ -803,31 +895,38 @@ const ChatPage = () => {
                                                       </h4>
                                                   </div>
                                                   <div className="p-1">
-                                                      {msg.citations.map((cite, i) => (
-                                                          <a 
-                                                              key={i} 
-                                                              href={getKanoonLink(cite.source, cite.section)}
-                                                              target="_blank"
-                                                              rel="noopener noreferrer"
-                                                              className="flex items-center justify-between px-3 py-2 hover:bg-[#27272a] rounded-lg group transition-colors text-xs"
-                                                          >
-                                                              <div className="flex flex-col">
-                                                                  <span className="font-medium text-purple-400 group-hover:text-purple-300 transition-colors">
-                                                                       {cite.section}
-                                                                  </span>
-                                                                  <span className="text-[10px] text-gray-500">{cite.source}</span>
-                                                              </div>
-                                                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                  <ExternalLink className="w-3 h-3 text-gray-400 hover:text-white" />
-                                                              </div>
-                                                          </a>
-                                                      ))}
+                                                      {msg.citations.map((cite, i) => {
+                                                          const rawSec = cite.section ? String(cite.section) : "";
+                                                          const isNullSec = !rawSec || rawSec.toLowerCase().includes("null") || rawSec.toLowerCase() === "undefined";
+                                                          const cleanSec = isNullSec ? (cite.source || "Statutory Reference") : rawSec.replace(/Section\s+Section/gi, "Section");
+                                                          const linkUrl = getKanoonLink(cite.source, cite.section, cite.url);
+                                                          
+                                                          return (
+                                                              <a 
+                                                                  key={i} 
+                                                                  href={linkUrl}
+                                                                  target="_blank"
+                                                                  rel="noopener noreferrer"
+                                                                  className="flex items-center justify-between px-3 py-2 hover:bg-[#27272a] rounded-lg group transition-colors text-xs"
+                                                              >
+                                                                  <div className="flex flex-col min-w-0">
+                                                                      <span className="font-medium text-purple-400 group-hover:text-purple-300 transition-colors truncate">
+                                                                           {cleanSec}
+                                                                      </span>
+                                                                      <span className="text-[10px] text-gray-500 truncate">{cite.source || "Indian Statute"}</span>
+                                                                  </div>
+                                                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2">
+                                                                      <ExternalLink className="w-3 h-3 text-gray-400 hover:text-white" />
+                                                                  </div>
+                                                              </a>
+                                                          );
+                                                      })}
                                                   </div>
                                               </div>
                                           )}
                                            
                                            <div className="mt-4 flex gap-2 justify-start opacity-70 hover:opacity-100 transition-opacity">
-                                              <Button variant="ghost" size="sm" className="h-6 text-[10px] text-gray-500 hover:text-gray-300 px-2" onClick={() => exportPDF(msg, "Legal Query")}>
+                                              <Button variant="ghost" size="sm" className="h-6 text-[10px] text-gray-500 hover:text-gray-300 px-2" onClick={() => exportPDF(msg, "Legal Research Analysis")}>
                                                   <Download className="h-3 w-3 mr-1.5" /> Save PDF
                                               </Button>
                                           </div>
