@@ -39,3 +39,4 @@ ENV/
 # Build
 dist/
 build/
+.auto-accept.json

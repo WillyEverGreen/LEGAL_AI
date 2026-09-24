@@ -43,17 +43,16 @@ interface Message {
 
 const QUICK_PROMPTS = [
     { label: "Punishment for Murder", query: "Punishment for murder under BNS", tag: "BNS §103", icon: ShieldAlert },
-    { label: "File Consumer Complaint", query: "How to file a consumer complaint", tag: "Consumer Act", icon: ShoppingBag },
     { label: "Check Cheating Laws", query: "Punishment for cheating", tag: "BNS §318", icon: AlertTriangle },
-    { label: "Draft Rent Agreement", query: "Essentials of a rent agreement", tag: "Contracts", icon: FileText }
+    { label: "Draft Rent Agreement", query: "Essentials of a rent agreement", tag: "Contracts", icon: FileText },
+    { label: "Cyber & Tech Crimes", query: "Punishment for online fraud and identity theft under IT Act", tag: "IT Act §66", icon: Zap }
 ];
 
 const LOADING_TEXTS = [
-    "Scanning BNS Section 103...",
-    "Cross-referencing Judgments...",
-    "Analyzing IPC vs BNS...",
-    "Verifying Legal Precedents...",
-    "Synthesizing Neutral Analysis..."
+    "Thinking with Groq Ultra-Fast LPU...",
+    "Scanning statutory provisions...",
+    "Cross-referencing legal precedents...",
+    "Synthesizing intelligent response..."
 ];
 
 const ChatPage = () => {
@@ -765,12 +764,15 @@ const ChatPage = () => {
                               animate={{ opacity: 1, scale: 1 }}
                               className="min-h-[55vh] flex flex-col items-center justify-center text-center px-4"
                           >
-                              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#18181b] rounded-2xl flex items-center justify-center mb-5 border border-[#27272a] shadow-xl">
+                              <div className="w-14 h-14 sm:w-16 sm:h-16 bg-[#18181b] rounded-2xl flex items-center justify-center mb-4 border border-[#27272a] shadow-xl">
                                   <Sparkles className="w-7 h-7 sm:w-8 sm:h-8 text-purple-400" />
                               </div>
-                              <h2 className="text-xl sm:text-2xl font-semibold text-white mb-2">LegalAi Research</h2>
-                              <p className="text-gray-400 max-w-sm mb-8 text-xs sm:text-sm leading-relaxed">
-                                  Your advanced legal intelligence assistant. Ask questions, compare statutes, or verify case citations.
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-[11px] font-medium mb-3">
+                                  <Zap className="w-3 h-3" /> Ultra-Fast Groq Inference • Indian Legal AI
+                              </div>
+                              <h2 className="text-xl sm:text-2xl font-semibold text-white mb-2">LegalAi Research & Advisory</h2>
+                              <p className="text-gray-400 max-w-md mb-8 text-xs sm:text-sm leading-relaxed">
+                                  Authoritative Indian jurisprudence, statutory penal transitions (BNS & IPC), contract drafting, and legal analysis delivered in real time.
                               </p>
                               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-xl">
                                   {QUICK_PROMPTS.map((prompt, idx) => {
@@ -971,7 +973,7 @@ const ChatPage = () => {
                        value={input}
                        onChange={(e) => setInput(e.target.value)}
                        onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                       placeholder={isListening ? "Listening..." : "Ask your legal question..."}
+                       placeholder={isListening ? "Listening..." : "Ask your legal question or describe a scenario..."}
                        className="border-0 bg-transparent focus-visible:ring-0 text-white placeholder:text-gray-500 h-9 px-2 shadow-none"
                    />
                    

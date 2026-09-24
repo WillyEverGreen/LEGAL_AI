@@ -20,27 +20,35 @@ load_dotenv(dotenv_path=base_path / ".env")
 
 class RAGEngine:
     def __init__(self):
+        self.groq_api_key = os.getenv("GROQ_API_KEY")
         self.nvidia_api_key = os.getenv("NVIDIA_API_KEY")
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         
-        # Priority: NVIDIA NIM -> OpenRouter
-        self.api_key = self.nvidia_api_key or self.openrouter_api_key
-        self.provider = "nvidia" if self.nvidia_api_key else "openrouter"
-
-        # Model mapping
-        if self.provider == "nvidia":
+        # Priority: GROQ (ultra-fast ~0.8s) -> NVIDIA NIM -> OpenRouter
+        if self.groq_api_key:
+            self.api_key = self.groq_api_key
+            self.provider = "groq"
+            self.model_name = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+            self.model_legal = os.getenv("GROQ_MODEL_LEGAL", "qwen/qwen3.8-27b")
+            self.model_simple = os.getenv("GROQ_MODEL_SIMPLE", "qwen/qwen3.8-27b")
+            print(f"[RAGEngine] Using GROQ Lightning-Fast API. Model: {self.model_name}")
+        elif self.nvidia_api_key:
+            self.api_key = self.nvidia_api_key
+            self.provider = "nvidia"
             self.model_name = os.getenv("NVIDIA_MODEL", "meta/llama-3.2-11b-vision-instruct")
             self.model_legal = os.getenv("NVIDIA_MODEL_LEGAL", "meta/llama-3.2-11b-vision-instruct")
             self.model_simple = os.getenv("NVIDIA_MODEL_SIMPLE", "meta/llama-3.2-11b-vision-instruct")
             print(f"[RAGEngine] Using NVIDIA NIM API. Models: {self.model_name}")
         else:
+            self.api_key = self.openrouter_api_key
+            self.provider = "openrouter"
             self.model_name = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct")
             self.model_legal = os.getenv("OPENROUTER_MODEL_LEGAL", "nvidia/nemotron-orchestrator-8b")
             self.model_simple = os.getenv("OPENROUTER_MODEL_SIMPLE", "mistralai/mistral-7b-instruct")
             print(f"[RAGEngine] Using OpenRouter API. Models: {self.model_name}")
 
         if not self.api_key:
-            print("[RAGEngine] [WARN] No API Key found (NVIDIA or OpenRouter). LLM features disabled.")
+            print("[RAGEngine] [WARN] No API Key found (Groq, NVIDIA, or OpenRouter). LLM features disabled.")
 
         # Initialize Enhanced Text Processor
         self.text_processor = TextProcessor()
@@ -95,7 +103,13 @@ class RAGEngine:
              self.collection = None
 
     def _classify_query(self, query: str) -> str:
-        """Classify query as 'simple' (greeting / meta / capabilities) or 'legal'."""
+        """
+        Classifies query into:
+        - 'capability': query about system capabilities / features
+        - 'greeting': friendly social interaction (hi, hello, thanks, bye)
+        - 'legal': Indian legal statutes, cases, disputes, rights, or procedures requiring RAG
+        - 'general': general topics (science, tech, coding, writing, history, everyday questions)
+        """
         q = query.lower().strip()
         # Normalize informal abbreviations
         q_norm = re.sub(r'\bu\b', 'you', q)
@@ -103,36 +117,67 @@ class RAGEngine:
         q_norm = re.sub(r'\bur\b', 'your', q_norm)
         q_norm = re.sub(r'\bplz\b', 'please', q_norm)
         
-        # 1. Clear greetings & meta/capability triggers
-        simple_patterns = [
-            'hello', 'hi', 'hey', 'namaste', 'thanks', 'thank you',
-            'what is your name', 'who are you', 'what are you',
+        # 1. Capability checks
+        capability_patterns = [
             'what can you do', 'what do you do', 'how can you help',
-            'what are your features', 'capabilities', 'help me', 'how to use',
-            'tell me about yourself', 'who made you', 'good morning', 'good afternoon', 'good evening',
-            'kya kar sakte ho', 'aap kya kar sakte', 'kaise madad kar sakte'
+            'what are your features', 'capabilities', 'tell me about yourself',
+            'who made you', 'kya kar sakte ho', 'aap kya kar sakte', 'kaise madad kar sakte',
+            'what are you', 'who are you'
         ]
-        
-        if any(p in q_norm or p in q for p in simple_patterns):
-            explicit_legal = ['section', 'bns', 'ipc', 'crpc', 'murder', 'theft', 'cheating', 'fir', 'bail']
+        if any(p in q_norm for p in capability_patterns):
+            return 'capability'
+
+        # 2. Pure greetings
+        pure_greeting_words = ['hello', 'hi', 'hey', 'namaste', 'pranam', 'halo', 'thanks', 'thank you', 'dhanyavad', 'shukriya', 'good morning', 'good afternoon', 'good evening', 'bye', 'goodbye']
+        words = q_norm.split()
+        if len(words) <= 3 and any(w in pure_greeting_words for w in [q_norm, ' '.join(words[:2]), words[0]]):
+            explicit_legal = ['section', 'bns', 'ipc', 'crpc', 'murder', 'theft', 'cheating', 'fir', 'bail', 'act', 'law']
             if not any(el in q_norm for el in explicit_legal):
-                return 'simple'
-        
-        # 2. Check for legal keywords
-        legal_patterns = [
-            'section', 'ipc', 'bns', 'law', 'legal', 'penalty', 'punishment',
-            'act', 'case', 'judgment', 'court', 'crime', 'offence', 'right',
-            'bail', 'fir', 'police', 'complaint', 'petition', 'contract', 'agreement',
-            'cheating', 'fraud', 'theft', 'assault', 'custody', 'divorce', 'consumer'
+                return 'greeting'
+
+        # 3. Explicit Legal Statute Names & Acts
+        legal_statute_names = [
+            'bns', 'ipc', 'crpc', 'bnss', 'bsa', 'cpc', 'constitution', 'it act', 
+            'bharatiya nyaya', 'bharatiya nagarik', 'bharatiya sakshya', 'indian penal code',
+            'code of criminal procedure', 'posh act', 'pocso', 'rti', 'motor vehicle',
+            'consumer protection', 'arbitration', 'negotiable instruments', 'ni act',
+            'companies act', 'contract act', 'hindu marriage', 'special marriage',
+            'transfer of property', 'evidence act', 'limitation act', 'drts', 'nclt',
+            'rera', 'ndps'
         ]
-        if any(pattern in q_norm for pattern in legal_patterns):
+        if any(re.search(rf'\b{re.escape(name)}\b', q_norm) for name in legal_statute_names):
             return 'legal'
-        
-        # 3. Very short non-legal queries
-        if len(q.split()) <= 3:
-            return 'simple'
-            
-        return 'legal'
+
+        # Legal concepts, procedure, rights, offences & remedies
+        legal_terms = [
+            'section', 'sec.', 'article', 'statute', 'ordinance', 'amendment',
+            'penalty', 'punishment', 'imprisonment', 'fine', 'bail', 'anticipatory bail',
+            'fir', 'police station', 'police complaint', 'complaint', 'petition',
+            'writ', 'habeas corpus', 'mandamus', 'quash', 'cognizable', 'non-bailable',
+            'court', 'judge', 'magistrate', 'high court', 'supreme court', 'sessions court',
+            'tribunal', 'advocate', 'lawyer', 'legal notice', 'draft notice', 'vakalatnama',
+            'affidavit', 'tenant', 'landlord', 'rent agreement', 'lease deed', 'nda',
+            'non-disclosure', 'contract', 'agreement', 'will', 'probate', 'inheritance',
+            'custody', 'divorce', 'alimony', 'maintenance', 'domestic violence', 'dowry',
+            'assault', 'murder', 'homicide', 'theft', 'robbery', 'dacoity', 'extortion',
+            'fraud', 'cheating', 'defamation', 'forgery', 'perjury', 'cybercrime',
+            'hacking', 'phishing', 'posh', 'harassment', 'consumer court', 'deficiency in service',
+            'legal rights', 'can i sue', 'sue', 'lawsuit', 'jurisdiction', 'cause of action'
+        ]
+        if any(re.search(rf'\b{re.escape(term)}\b', q_norm) for term in legal_terms):
+            return 'legal'
+
+        # Hindi legal terminology
+        hindi_legal_terms = [
+            'धारा', 'कानून', 'सजा', 'दण्ड', 'जुर्माना', 'जमानत', 'मुकदमा', 'वकील',
+            'अदालत', 'न्यायालय', 'पुलिस', 'शिकायत', 'तलाक', 'अपराध', 'चोरी',
+            'धोखाधड़ी', 'विधिक', 'शपथ पत्र', 'किरायानामा'
+        ]
+        if any(term in query for term in hindi_legal_terms):
+            return 'legal'
+
+        # 4. Open-domain general topics (science, tech, coding, writing, business, etc.)
+        return 'general'
     
     def _generate_statute_url(self, law: str, section: str) -> str | None:
         """Generate verified legal research URL for Indian statutes."""
@@ -169,65 +214,85 @@ class RAGEngine:
         search_query = " ".join(clean_terms) if clean_terms else "Indian Law Statute"
         return f'https://indiankanoon.org/search/?formInput={quote(search_query)}'
 
-    def _call_llm(self, messages: list[dict], max_tokens: int = 1000, timeout: int = 45, model_override: str | None = None) -> str:
-        """Helper to call LLM API with retries and timeout."""
+    def _call_llm(self, messages: list[dict], max_tokens: int = 1000, timeout: int = 30, model_override: str | None = None) -> str:
+        """Helper to call LLM API with retries, timeout, and provider fallback."""
         if not self.api_key:
             raise Exception("API Key missing")
 
-        if self.provider == "nvidia":
-            url = "https://integrate.api.nvidia.com/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json"
-            }
-        else:
-            url = "https://openrouter.ai/api/v1/chat/completions"
-            headers = {
-                "Authorization": f"Bearer {self.api_key}",
-                "HTTP-Referer": os.getenv("APP_URL", "http://localhost:3000"),
-                "X-Title": "LegalAi",
-                "Content-Type": "application/json"
-            }
+        # Define prioritized providers to try
+        providers_to_try = []
+        if self.groq_api_key:
+            providers_to_try.append(("groq", self.groq_api_key, model_override or self.model_name))
+        if self.nvidia_api_key:
+            nvidia_model = os.getenv("NVIDIA_MODEL", "meta/llama-3.2-11b-vision-instruct")
+            providers_to_try.append(("nvidia", self.nvidia_api_key, nvidia_model))
+        if self.openrouter_api_key:
+            or_model = os.getenv("OPENROUTER_MODEL", "mistralai/mistral-7b-instruct")
+            providers_to_try.append(("openrouter", self.openrouter_api_key, or_model))
 
-        target_model = model_override or self.model_name
-        data = {
-            "model": target_model,
-            "messages": messages,
-            "temperature": 0.2,
-            "max_tokens": max_tokens
-        }
+        if not providers_to_try:
+            raise Exception("No active LLM provider configured.")
 
         last_error = None
-        for attempt in range(3):
-            try:
-                response = requests.post(url, headers=headers, json=data, timeout=timeout)
-                if response.status_code == 200:
-                    result = response.json()
-                    if 'choices' in result and len(result['choices']) > 0:
-                        content = result['choices'][0]['message'].get('content', '')
-                        if content:
-                            return content
-                        return "Error: Received empty content from LLM."
-                    raise Exception(f"Unexpected response format: {result}")
-                
-                err_text = response.text
-                print(f"[RAGEngine] API attempt {attempt+1} error ({response.status_code}): {err_text[:160]}")
-                last_error = f"API Error {response.status_code}: {err_text}"
-                
-                # Retry on 429, 500 (inference connection errors), 502, 503, 504
-                if response.status_code in [429, 500, 502, 503, 504]:
-                    time.sleep(1.5 * (attempt + 1))
-                    continue
-                else:
-                    break
-            except requests.exceptions.Timeout:
-                print(f"[RAGEngine] Attempt {attempt+1} timed out after {timeout}s")
-                last_error = f"Response took too long (>{timeout}s)"
-                time.sleep(1)
-            except Exception as e:
-                print(f"[RAGEngine] Attempt {attempt+1} failed: {e}")
-                last_error = str(e)
-                time.sleep(1)
+        for prov_name, prov_key, prov_model in providers_to_try:
+            if prov_name == "groq":
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {prov_key}",
+                    "Content-Type": "application/json"
+                }
+            elif prov_name == "nvidia":
+                url = "https://integrate.api.nvidia.com/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {prov_key}",
+                    "Content-Type": "application/json"
+                }
+            else:
+                url = "https://openrouter.ai/api/v1/chat/completions"
+                headers = {
+                    "Authorization": f"Bearer {prov_key}",
+                    "HTTP-Referer": os.getenv("APP_URL", "http://localhost:3000"),
+                    "X-Title": "LegalAi",
+                    "Content-Type": "application/json"
+                }
+
+            data = {
+                "model": prov_model,
+                "messages": messages,
+                "temperature": 0.2,
+                "max_tokens": max_tokens
+            }
+
+            for attempt in range(2):
+                try:
+                    response = requests.post(url, headers=headers, json=data, timeout=timeout)
+                    if response.status_code == 200:
+                        result = response.json()
+                        if 'choices' in result and len(result['choices']) > 0:
+                            content = result['choices'][0]['message'].get('content', '')
+                            if content:
+                                return content
+                            return "Error: Received empty content from LLM."
+                        raise Exception(f"Unexpected response format: {result}")
+                    
+                    err_text = response.text
+                    print(f"[RAGEngine] {prov_name} attempt {attempt+1} error ({response.status_code}): {err_text[:160]}")
+                    last_error = f"{prov_name} Error {response.status_code}: {err_text}"
+                    
+                    # Retry on 429, 500, 502, 503, 504
+                    if response.status_code in [429, 500, 502, 503, 504]:
+                        time.sleep(1.0 * (attempt + 1))
+                        continue
+                    else:
+                        break
+                except requests.exceptions.Timeout:
+                    print(f"[RAGEngine] {prov_name} timed out after {timeout}s")
+                    last_error = f"{prov_name} timed out (> {timeout}s)"
+                    time.sleep(0.5)
+                except Exception as e:
+                    print(f"[RAGEngine] {prov_name} attempt {attempt+1} failed: {e}")
+                    last_error = str(e)
+                    time.sleep(0.5)
 
         raise Exception(last_error or "LLM generation failed after retries")
 
@@ -423,48 +488,42 @@ class RAGEngine:
         LONG_TRIGGERS = ["explain", "detail", "elaborate", "analysis", "ingredients"]
         is_long = any(t in query.lower() for t in LONG_TRIGGERS)
 
-        # 0. Smart Routing: rule-based fast path for simple greetings and capabilities
+        # 0. Smart Routing: rule-based fast path for capabilities, greetings, and general open-domain topics
         query_type = self._classify_query(query)
-        if query_type == 'simple':
-            q_lower = query.lower()
-            q_norm = re.sub(r'\bu\b', 'you', q_lower)
-            is_capability = any(p in q_norm for p in [
-                'what can you do', 'what do you do', 'how can you help',
-                'who are you', 'capabilities', 'features', 'tell me about yourself', 'what are you'
-            ])
-            if is_capability:
-                intro_answer = (
-                    "### Welcome to **LegalAi** — Your Intelligent Indian Law Research Partner\n\n"
-                    "I am an advanced legal intelligence system specialized in Indian jurisprudence, constitutional law, and statutory penal transitions.\n\n"
-                    "#### Here is what I can do for you:\n\n"
-                    "1. **Statutory Intelligence & Comparison**\n"
-                    "   • Instant analysis across the **Bharatiya Nyaya Sanhita (BNS, 2023)**, **Indian Penal Code (IPC, 1860)**, **CrPC**, and **Information Technology Act, 2000**.\n"
-                    "   • Direct section comparisons with statutory transition tracking and penalty shifts.\n\n"
-                    "2. **Precedents & Verifiable Sources**\n"
-                    "   • Authoritative answers backed by landmark Supreme Court judgments, ratios, and verifiable links to IndiaCode & Indian Kanoon.\n\n"
-                    "3. **Balanced Legal Analysis & Arguments**\n"
-                    "   • Structured prosecution strengths, defense arguments, and neutral judicial interpretations.\n\n"
-                    "4. **Automated Legal Drafting**\n"
-                    "   • Generate formal Legal Demand Notices, Employment Contracts, Non-Disclosure Agreements (NDAs), and Rental Deeds.\n\n"
-                    "5. **Document Summarization & PDF Export**\n"
-                    "   • Summarize lengthy petitions, contracts, and court orders into executive briefs.\n"
-                    "   • Export paginated research reports to PDF and listen via audio Read Aloud.\n\n"
-                    "Ask me any legal question, describe a situation, or search for a specific section to get started!"
-                )
-                return {
-                    "answer": intro_answer,
-                    "citations": [],
-                    "related_judgments": [],
-                    "neutral_analysis": None,
-                    "arguments": None
-                }
-            
-            # For general greetings (e.g. "hello", "good morning", "thanks")
+        if query_type == 'capability':
+            intro_answer = (
+                "### Welcome to **LegalAi** — Your Intelligent Indian Law Research & Advisory Partner\n\n"
+                "I am an advanced legal intelligence system specialized in Indian jurisprudence, statutory transitions, regulatory compliance, and automated drafting, powered by ultra-fast inference.\n\n"
+                "#### Core Capabilities:\n\n"
+                "1. **Statutory Intelligence & Penal Code Transitions**\n"
+                "   • Real-time analysis across the **Bharatiya Nyaya Sanhita (BNS, 2023)**, **Indian Penal Code (IPC, 1860)**, **BNSS / CrPC**, and **Information Technology Act, 2000**.\n"
+                "   • Exact section comparisons, statutory shifts, and penalty changes.\n\n"
+                "2. **Authoritative Precedents & Citations**\n"
+                "   • Rulings backed by landmark Supreme Court judgments, ratios, and verifiable links to IndiaCode & Indian Kanoon.\n\n"
+                "3. **Balanced Legal Arguments & Neutral Analysis**\n"
+                "   • Prosecution arguments, defense perspectives, and balanced judicial evaluations.\n\n"
+                "4. **Automated Legal Drafting**\n"
+                "   • Generate formal Legal Demand Notices, NDAs, Rental Agreements, Employment Contracts, and POSH complaints.\n\n"
+                "5. **Legal Advisory & Regulatory Problem Solving**\n"
+                "   • Practical guidance on commercial compliance, cyber regulations, consumer disputes, and legal rights.\n\n"
+                "6. **Document Summarization & PDF Briefs**\n"
+                "   • Extract critical clauses from contracts, court petitions, and orders with downloadable PDF research briefs.\n\n"
+                "Ask any legal question, describe a dispute or situation, or cite a section to get started!"
+            )
+            return {
+                "answer": intro_answer,
+                "citations": [],
+                "related_judgments": [],
+                "neutral_analysis": None,
+                "arguments": None
+            }
+
+        if query_type == 'greeting':
             try:
                 greeting_prompt = (
                     "You are LegalAi, a prestigious AI legal assistant specializing in Indian Law. "
-                    "Respond to the user's greeting or non-legal remark warmly, professionally, and concisely in 2-3 sentences. "
-                    "Invite them to ask about Indian statutes (BNS, IPC), case law, or legal drafting."
+                    "Respond to the user's greeting warmly, professionally, and concisely in 2 sentences. "
+                    "Invite them to ask about Indian statutes (BNS, IPC), legal scenarios, contracts, or statutory compliance."
                 )
                 routing_response = self._call_llm([
                     {"role": "system", "content": greeting_prompt},
@@ -482,6 +541,63 @@ class RAGEngine:
                 print(f"[RAGEngine] Simple greeting fallback: {e}")
                 return {
                     "answer": "Hello! I am **LegalAi**, your Indian legal assistant. How can I assist you with Indian law, statutes (BNS/IPC), or legal drafting today?",
+                    "citations": [],
+                    "related_judgments": [],
+                    "neutral_analysis": None,
+                    "arguments": None
+                }
+
+        if query_type == 'general':
+            print(f"[RAGEngine] Handling General Topic query: '{safe_query}'")
+            general_system_prompt = (
+                "You are LegalAi, a dedicated Indian Legal AI Assistant and research partner.\n\n"
+                "CORE IDENTITY & DIRECTIVES:\n"
+                "1. Maintain your primary persona and authority as LegalAi, firmly rooted in Indian law, jurisprudence, and regulatory knowledge.\n"
+                "2. When answering broader topics (such as workplace scenarios, commercial/business decisions, technology/cyber matters, property, agreements, or everyday situations), provide a clear, helpful answer while framing the response through a legal, regulatory, compliance, or rights-management perspective under Indian legal standards.\n"
+                "3. If the user asks a pure general knowledge or educational question (e.g., science or history), answer accurately and concisely with professional poise, maintaining your identity as LegalAi and offering legal or statutory context where relevant.\n"
+                "4. Structure answers with clear headings, bullet points, and authoritative guidance in Markdown format.\n"
+                "5. Always maintain a professional, sharp, and helpful legal counsel demeanor."
+            )
+            if language == "hi":
+                general_system_prompt += (
+                    "\n\nभाषा निर्देश:\n- अपना उत्तर पूर्णतः हिंदी (देवनागरी लिपि) में दें।\n- कानूनी और तकनीकी शब्दों का सटीक विधिक अर्थ स्पष्ट रखें।"
+                )
+
+            # Check cache
+            cache_key = f"gen::{language}|{query.strip()}"
+            if cache_key in self._cache:
+                cached = self._cache[cache_key]
+                return {
+                    "answer": cached.get("answer", ""),
+                    "citations": [],
+                    "related_judgments": [],
+                    "neutral_analysis": None,
+                    "arguments": None
+                }
+
+            messages = [
+                {"role": "system", "content": general_system_prompt},
+            ]
+            if session_id:
+                history = self.conversation_memory.get_history(session_id, max_messages=4)
+                for msg in history[:-1]:
+                    messages.append({"role": msg["role"], "content": msg["content"]})
+            messages.append({"role": "user", "content": query})
+
+            try:
+                raw_answer = self._call_llm(messages, max_tokens=1500, timeout=25, model_override=self.model_simple)
+                self._cache[cache_key] = {"answer": raw_answer}
+                return {
+                    "answer": raw_answer,
+                    "citations": [],
+                    "related_judgments": [],
+                    "neutral_analysis": None,
+                    "arguments": None
+                }
+            except Exception as e:
+                print(f"[RAGEngine] General topic LLM error: {e}")
+                return {
+                    "answer": f"I encountered a temporary error while processing your request: {e}",
                     "citations": [],
                     "related_judgments": [],
                     "neutral_analysis": None,

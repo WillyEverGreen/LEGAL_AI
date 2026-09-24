@@ -1,4 +1,5 @@
 import os
+import re
 
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, UploadFile
@@ -75,62 +76,53 @@ async def generate_draft(request: DraftRequest):
 @app.post("/query")
 async def query_rag(request: QueryRequest):
     try:
-        # Fast path for simple greetings - bypass RAG
+        # Fast path strictly for standalone greetings / thanks
         query_lower = request.query.lower().strip()
-        # Increased length limit to catch longer Hindi/Hinglish sentences
-        if len(query_lower) < 60:
-            if any(word in query_lower for word in ['hello', 'hi', 'hey', 'namaste', 'pranam', 'halo']):
-                if request.language == 'hi':
-                    return {
-                        "answer": "नमस्ते! मैं **LegalAi** हूँ, आपका भारतीय कानूनी सहायक।\n\nमेरी विशेषज्ञता:\n- **आपराधिक कानून** (IPC/BNS)\n- **आईटी और साइबर कानून**\n- **कॉर्पोरेट कानून**\n- **उपभोक्ता कानून**\n- **परिवहन कानून**\n\nआज मैं आपकी कैसे मदद कर सकता हूँ?",
-                        "citations": [],
-                        "related_judgments": []
-                    }
-                else:
-                    return {
-                        "answer": "Hello! I'm **LegalAi**, your Indian legal assistant.\n\nI specialize in:\n- **Criminal Law** (IPC/BNS)\n- **IT & Cyber Law**\n- **Corporate Law**\n- **Consumer Law**\n- **Transport Law**\n\nHow can I help you today?",
-                        "citations": [],
-                        "related_judgments": []
-                    }
-            elif any(phrase in query_lower for phrase in ['how can you help', 'what do you do', 'what can you do', 'help me', 'madad', 'sahayata', 'kya tum', 'sakte ho']):
-                if request.language == 'hi':
-                    return {
-                        "answer": "मैं **LegalAi** हूँ, और मैं आपकी मदद कर सकता हूँ:\n\n1. **कानूनी प्रश्न**: विशिष्ट कानूनों के बारे में पूछें (जैसे, 'चोरी की सजा', 'कंपनी कैसे रजिस्टर करें')\n2. **तुलना**: पुराने बनाम नए कानूनों की तुलना करें (जैसे, 'IPC 302 बनाम BNS 103')\n3. **दस्तावेज़ सारांश**: सारांश के लिए कानूनी दस्तावेज़ अपलोड करें\n4. **केस लॉ**: ऐतिहासिक फैसलों पर जानकारी प्राप्त करें\n\nबस अपना प्रश्न टाइप करें!",
-                        "citations": [],
-                        "related_judgments": []
-                    }
-                else:
-                    return {
-                        "answer": "I'm **LegalAi**, and I can help you with:\n\n1. **Legal Queries**: Ask about specific laws (e.g., 'punishment for theft', 'how to register a company')\n2. **Comparisons**: Compare old vs. new laws (e.g., 'IPC 302 vs BNS 103')\n3. **Document Summarization**: Upload legal docs for a summary\n4. **Case Law**: Get information on landmark judgments\n\nJust type your question!",
-                        "citations": [],
-                        "related_judgments": []
-                    }
-            elif any(phrase in query_lower for phrase in ['who are you', 'your name', 'about you', 'kaun ho', 'tumhara naam']):
-                if request.language == 'hi':
-                     return {
-                        "answer": "मैं **LegalAi** हूँ, एक बुद्धिमान कानूनी सहायक जिसे भारतीय कानून को सरल बनाने के लिए डिज़ाइन किया गया है। मैं सटीक कानूनी मार्गदर्शन प्रदान करने के लिए IPC/BNS, IT अधिनियम, कंपनी अधिनियम आदि जैसे प्रमुख अधिनियमों को कवर करता हूँ।",
-                        "citations": [],
-                        "related_judgments": []
-                    }
-                else:
-                    return {
-                        "answer": "I am **LegalAi**, an intelligent legal assistant designed to simplify Indian law. I cover major acts like IPC/BNS, IT Act, Companies Act, and more to provide accurate legal guidance.",
-                        "citations": [],
-                        "related_judgments": []
-                    }
-            elif any(word in query_lower for word in ['thank', 'thanks', 'dhanyavad', 'shukriya']):
-                if request.language == 'hi':
-                    return {
-                        "answer": "आपका स्वागत है! अगर आपके पास और कानूनी प्रश्न हैं तो बेझिझक पूछें।",
-                        "citations": [],
-                        "related_judgments": []
-                    }
-                else:
-                    return {
-                        "answer": "You're welcome! Feel free to ask if you have more legal questions.",
-                        "citations": [],
-                        "related_judgments": []
-                    }
+        clean_q = re.sub(r'[^\w\s]', '', query_lower).strip()
+
+        standalone_greetings = {'hello', 'hi', 'hey', 'namaste', 'pranam', 'halo', 'good morning', 'good afternoon', 'good evening'}
+        standalone_thanks = {'thank you', 'thanks', 'dhanyavad', 'shukriya'}
+        standalone_meta = {'who are you', 'your name', 'about you', 'kaun ho', 'tumhara naam'}
+
+        if clean_q in standalone_greetings:
+            if request.language == 'hi':
+                return {
+                    "answer": "नमस्ते! मैं **LegalAi** हूँ — आपका भारतीय कानूनी अनुसंधान सहायक। मैं भारतीय कानून (BNS/IPC), कानूनी दस्तावेज़ ड्राफ्टिंग, और विधिक सलाह में आपकी सहायता कर सकता हूँ।\n\nआज मैं आपकी कैसे मदद कर सकता हूँ?",
+                    "citations": [],
+                    "related_judgments": []
+                }
+            else:
+                return {
+                    "answer": "Hello! I'm **LegalAi** — your AI assistant for Indian legal research. I can assist with Indian laws (BNS/IPC), statutory comparisons, contract drafting, and legal queries.\n\nHow can I help you today?",
+                    "citations": [],
+                    "related_judgments": []
+                }
+        elif clean_q in standalone_thanks:
+            if request.language == 'hi':
+                return {
+                    "answer": "आपका स्वागत है! यदि आपके पास कोई अन्य कानूनी प्रश्न या विषय है, तो बेझिझक पूछें।",
+                    "citations": [],
+                    "related_judgments": []
+                }
+            else:
+                return {
+                    "answer": "You're very welcome! Feel free to ask if you have more legal questions or need assistance with Indian law.",
+                    "citations": [],
+                    "related_judgments": []
+                }
+        elif clean_q in standalone_meta:
+            if request.language == 'hi':
+                return {
+                    "answer": "मैं **LegalAi** हूँ, एक अत्यंत तीव्र AI कानूनी अनुसंधान सहायक। मुझे भारतीय कानून (IPC/BNS, CrPC/BNSS, IT Act, Companies Act) और विधिक ड्राफ्टिंग के लिए प्रशिक्षित किया गया है।",
+                    "citations": [],
+                    "related_judgments": []
+                }
+            else:
+                return {
+                    "answer": "I am **LegalAi**, an ultra-fast AI legal intelligence assistant specialized in Indian jurisprudence (IPC/BNS transitions, CrPC/BNSS, IT Act, corporate laws) and legal document drafting.",
+                    "citations": [],
+                    "related_judgments": []
+                }
         
         # Add user message to conversation memory if session exists
         if request.session_id:
