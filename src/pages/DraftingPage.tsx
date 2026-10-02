@@ -85,7 +85,7 @@ const DraftingPage = () => {
         setIsGenerating(true);
 
         try {
-            const response = await fetch(getApiUrl('/draft'), {
+            let response = await fetch(getApiUrl('/draft'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -94,6 +94,25 @@ const DraftingPage = () => {
                     language: language
                 })
             });
+
+            // Cold start recovery on Render Free tier (502/503/504)
+            if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504)) {
+                toast.info("Backend is waking up from sleep. Automatically retrying...");
+                await new Promise(r => setTimeout(r, 6000));
+                response = await fetch(getApiUrl('/draft'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        draft_type: draftType,
+                        details: details,
+                        language: language
+                    })
+                });
+            }
+
+            if (!response.ok) {
+                throw new Error(`Draft request failed with status ${response.status}`);
+            }
 
             const data = await response.json();
             if (data.draft) {
@@ -105,7 +124,7 @@ const DraftingPage = () => {
             }
         } catch (error) {
             console.error("Error generating draft:", error);
-            toast.error("Connection error. Is the backend running?");
+            toast.error("Connection error. The service may still be starting up — please retry.");
         } finally {
             setIsGenerating(false);
         }

@@ -104,10 +104,24 @@ const SummarizePage = () => {
         formData.append('file', file);
 
         try {
-            const response = await fetch(getApiUrl('/summarize'), {
+            let response = await fetch(getApiUrl('/summarize'), {
                 method: 'POST',
                 body: formData
             });
+
+            // Cold start recovery on Render Free tier (502/503/504)
+            if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504)) {
+                toast.info("Backend is waking up from sleep. Automatically retrying in a moment...");
+                await new Promise(r => setTimeout(r, 6000));
+                response = await fetch(getApiUrl('/summarize'), {
+                    method: 'POST',
+                    body: formData
+                });
+            }
+
+            if (!response.ok) {
+                throw new Error(`Upload failed with status ${response.status}`);
+            }
             
             const data = await response.json();
             const summaryText = data.summary || "No summary generated.";
@@ -116,7 +130,7 @@ const SummarizePage = () => {
             toast.success("Summary generated!");
         } catch (error) {
             console.error("Upload Error:", error);
-            setSummary("Error uploading file. Please ensure the backend is running.");
+            setSummary("Error uploading file. The backend service may still be starting up — please retry.");
             toast.error("Generation failed.");
         } finally {
             setIsUploading(false);

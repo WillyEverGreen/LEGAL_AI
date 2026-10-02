@@ -13,9 +13,18 @@ import SignupPage from "./pages/SignupPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 
+import { useEffect } from "react";
+import { getApiUrl } from "./lib/api";
+
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    // Pre-warm backend on page load so Render cold-start finishes early
+    fetch(getApiUrl('/health')).catch(() => {});
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -35,6 +44,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

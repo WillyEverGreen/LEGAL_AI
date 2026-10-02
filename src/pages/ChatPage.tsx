@@ -530,7 +530,7 @@ const ChatPage = () => {
     }
 
     try {
-        const response = await fetch(getApiUrl('/query'), { // Pointing directly to backend for stability
+        let response = await fetch(getApiUrl('/query'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -541,7 +541,31 @@ const ChatPage = () => {
                 analysis_mode: analysisMode 
             })
         });
+
+        // Cold start recovery on Render Free tier (502/503/504)
+        if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504)) {
+            toast({
+                title: "Waking up AI Backend",
+                description: "Cloud service is starting up from sleep. Automatically retrying...",
+            });
+            await new Promise(r => setTimeout(r, 6000));
+            response = await fetch(getApiUrl('/query'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    query: text, 
+                    language: useLanguage, 
+                    domain, 
+                    arguments_mode: argumentsMode,
+                    analysis_mode: analysisMode 
+                })
+            });
+        }
         
+        if (!response.ok) {
+            throw new Error(`Server responded with status ${response.status}`);
+        }
+
         const data = await response.json();
         
         if (data.answer) {
@@ -562,7 +586,7 @@ const ChatPage = () => {
         }
     } catch (error) {
         console.error("Chat Error:", error);
-        const newMessages = [...messages, userMsg, { role: 'assistant' as const, content: "Error connecting to the server. Please ensure the backend is running." }];
+        const newMessages = [...messages, userMsg, { role: 'assistant' as const, content: "Error connecting to the server. The backend may still be starting up on Render — please retry in a moment." }];
         setMessages(newMessages);
         saveCurrentConversation(newMessages);
     } finally {
