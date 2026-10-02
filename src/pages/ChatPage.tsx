@@ -86,7 +86,24 @@ const ChatPage = () => {
   // Text-to-speech state
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speakingMessageIndex, setSpeakingMessageIndex] = useState<number | null>(null);
+  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  // Stop all audio playback (both Sarvam HTML5 audio and browser speech synthesis)
+  const stopAllSpeech = () => {
+    if (audioPlayerRef.current) {
+      audioPlayerRef.current.pause();
+      audioPlayerRef.current.currentTime = 0;
+      audioPlayerRef.current = null;
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    setIsLoadingAudio(false);
+    setSpeakingMessageIndex(null);
+  };
 
   // Load conversations from localStorage on mount
   useEffect(() => {
@@ -117,9 +134,7 @@ const ChatPage = () => {
   // Cleanup speech synthesis on unmount
   useEffect(() => {
     return () => {
-      if (speechSynthesisRef.current) {
-        window.speechSynthesis.cancel();
-      }
+      stopAllSpeech();
     };
   }, []);
 
@@ -138,83 +153,95 @@ const ChatPage = () => {
       .trim();
   };
 
-  // Text-to-speech functions
-  const handleReadAloud = (rawText: string, messageIndex: number) => {
-    // Check browser support
+  const fallbackBrowserSpeech = (textToSpeak: string, messageIndex: number) => {
+    setIsLoadingAudio(false);
     if (!('speechSynthesis' in window)) {
-      alert('Text-to-speech is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      stopAllSpeech();
       return;
     }
 
-    // If already speaking this message, stop it
-    if (isSpeaking && speakingMessageIndex === messageIndex) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
-      setSpeakingMessageIndex(null);
+    let voices = window.speechSynthesis.getVoices();
+    function startSpeaking(v: SpeechSynthesisVoice[]) {
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      const naturalVoice = v.find(voice => voice.lang.startsWith(language === 'hi' ? 'hi' : 'en'));
+      if (naturalVoice) utterance.voice = naturalVoice;
+      utterance.rate = 0.95;
+      utterance.onstart = () => {
+        setIsSpeaking(true);
+        setSpeakingMessageIndex(messageIndex);
+      };
+      utterance.onend = () => stopAllSpeech();
+      utterance.onerror = () => stopAllSpeech();
+      speechSynthesisRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    if (voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        startSpeaking(window.speechSynthesis.getVoices());
+      };
+    } else {
+      startSpeaking(voices);
+    }
+  };
+
+  // Text-to-speech with Sarvam AI Natural Human Voice and Browser Speech Fallback
+  const handleReadAloud = async (rawText: string, messageIndex: number) => {
+    // If already speaking or loading this message, stop it
+    if ((isSpeaking || isLoadingAudio) && speakingMessageIndex === messageIndex) {
+      stopAllSpeech();
       return;
     }
 
     // Stop any ongoing speech
-    window.speechSynthesis.cancel();
+    stopAllSpeech();
     const textToSpeak = cleanSpeechText(rawText);
     if (!textToSpeak) return;
 
-    // Small delay to prevent interruption error
-    setTimeout(() => {
-      // Get available voices
-      let voices = window.speechSynthesis.getVoices();
-      
-      // If voices aren't loaded yet, wait for them
-      if (voices.length === 0) {
-        window.speechSynthesis.onvoiceschanged = () => {
-          voices = window.speechSynthesis.getVoices();
-          startSpeaking(voices);
-        };
-      } else {
-        startSpeaking(voices);
-      }
+    setSpeakingMessageIndex(messageIndex);
+    setIsLoadingAudio(true);
 
-      function startSpeaking(voices: SpeechSynthesisVoice[]) {
-        const utterance = new SpeechSynthesisUtterance(textToSpeak);
-        
-        // Select female or natural English voice
-        const naturalVoice = voices.find(
-          voice => voice.name.includes('Natural') ||
-                   voice.name.includes('Google') ||
-                   voice.name.includes('Samantha') || 
-                   voice.name.includes('Zira') ||
-                   voice.name.includes('Female')
-        ) || voices.find(voice => voice.lang.startsWith(language === 'hi' ? 'hi' : 'en'));
+    try {
+      // 1. Request ultra-realistic Sarvam AI human voice
+      const res = await fetch(getApiUrl('/tts'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: textToSpeak,
+          language: language
+        })
+      });
 
-        if (naturalVoice) {
-          utterance.voice = naturalVoice;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audio) {
+          const audio = new Audio(`data:audio/wav;base64,${data.audio}`);
+          audioPlayerRef.current = audio;
+
+          audio.onplay = () => {
+            setIsLoadingAudio(false);
+            setIsSpeaking(true);
+          };
+
+          audio.onended = () => {
+            stopAllSpeech();
+          };
+
+          audio.onerror = (e) => {
+            console.warn("Sarvam audio playback error, falling back to browser speech:", e);
+            fallbackBrowserSpeech(textToSpeak, messageIndex);
+          };
+
+          await audio.play();
+          return;
         }
-
-        utterance.rate = 0.9;
-        utterance.pitch = 1.05;
-        utterance.volume = 1.0;
-
-        // Event handlers
-        utterance.onstart = () => {
-          setIsSpeaking(true);
-          setSpeakingMessageIndex(messageIndex);
-        };
-
-        utterance.onend = () => {
-          setIsSpeaking(false);
-          setSpeakingMessageIndex(null);
-        };
-
-        utterance.onerror = (event) => {
-          console.error('Speech synthesis error:', event);
-          setIsSpeaking(false);
-          setSpeakingMessageIndex(null);
-        };
-
-        speechSynthesisRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
       }
-    }, 100);
+      // If /tts is not supported or returns error, fallback to browser TTS
+      fallbackBrowserSpeech(textToSpeak, messageIndex);
+    } catch (e) {
+      console.warn("Sarvam TTS request failed, falling back to browser speech:", e);
+      fallbackBrowserSpeech(textToSpeak, messageIndex);
+    }
   };
 
   useEffect(() => {
@@ -853,23 +880,29 @@ const ChatPage = () => {
                                       <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:bg-[#18181b] prose-pre:border prose-pre:border-[#27272a]">
                                           <ReactMarkdown>{msg.content}</ReactMarkdown>
                                            
-                                           {/* Read Aloud Button */}
+                                           {/* Read Aloud Button (Sarvam AI Human Voice) */}
                                            <div className="mt-3 flex items-center gap-2 not-prose">
                                              <Button
                                                variant="ghost"
                                                size="sm"
+                                               disabled={isLoadingAudio && speakingMessageIndex === idx}
                                                onClick={() => handleReadAloud(msg.content, idx)}
-                                               className="h-8 px-3 text-xs text-gray-400 hover:text-white hover:bg-[#27272a] transition-colors"
+                                               className="h-8 px-3 text-xs text-gray-400 hover:text-white hover:bg-[#27272a] transition-all rounded-lg border border-transparent hover:border-purple-500/20"
                                              >
-                                               {isSpeaking && speakingMessageIndex === idx ? (
+                                               {isLoadingAudio && speakingMessageIndex === idx ? (
                                                  <>
-                                                   <VolumeX className="w-3.5 h-3.5 mr-1.5" />
-                                                   Stop Reading
+                                                   <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-purple-400" />
+                                                   <span className="text-purple-300">Generating voice...</span>
+                                                 </>
+                                               ) : isSpeaking && speakingMessageIndex === idx ? (
+                                                 <>
+                                                   <VolumeX className="w-3.5 h-3.5 mr-1.5 text-purple-400 animate-pulse" />
+                                                   <span className="text-purple-300 font-medium">Stop Audio</span>
                                                  </>
                                                ) : (
                                                  <>
-                                                   <Volume2 className="w-3.5 h-3.5 mr-1.5" />
-                                                   Read Aloud
+                                                   <Volume2 className="w-3.5 h-3.5 mr-1.5 text-purple-400" />
+                                                   <span>Listen (Human Voice)</span>
                                                  </>
                                                )}
                                              </Button>
