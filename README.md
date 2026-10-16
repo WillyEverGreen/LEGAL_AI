@@ -1,29 +1,20 @@
-# ⚖️ LegalAi: The Intelligent Justice Engine
+<div align="center">
 
-**Democratizing Legal Justice with NVIDIA-Powered AI.**
-*Winner/Participant at Rubix TSEC Hackathon*
+<img src="public/logo.jpg" width="110" alt="LegalAi logo" />
 
-LegalAi is a high-performance **"Judge-Safe"** legal research platform. Designed for both citizens and legal professionals, it bridges the gap between the complex Indian Penal Code (IPC) and the new Bharatiya Nyaya Sanhita (BNS) using state-of-the-art **Retrieval-Augmented Generation (RAG)**.
+# LegalAi
 
-![Landing Page](./public/landing.png)
+**AI-powered legal assistant for Indian law: statute comparison, document analysis and case research.**
 
-**Live demo: https://legal-ai-gateway.onrender.com**
+<a href="https://legal-ai-gateway.onrender.com"><img src="https://img.shields.io/badge/Live_Demo-Open_the_app-2ea44f?style=for-the-badge" alt="Live demo" /></a>
 
-## Screenshots
+<br/>
 
-**Landing page**
+<img src="docs/screenshot.png" width="860" alt="LegalAi screenshot" />
 
-![Landing page](docs/screenshots/legal-ai-home.png)
+</div>
 
-**Features**
-
-![Features](docs/screenshots/legal-ai-3.png)
-
-**Mobile view**
-
-![Mobile view](docs/screenshots/legal-ai-mobile.png)
-
-## 🏗️ The Architecture (Techny & Fancy)
+## 🏗️ Architecture
 
 LegalAi is built on a distributed microservices architecture designed for reliability and speed.
 
