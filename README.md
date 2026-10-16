@@ -102,7 +102,7 @@ npm start
 ---
 
 ## 📂 System Organization
-- `rag_service/`: The heart of the AI—Python FastAPI service managing ChromaDB and NVIDIA NIM.
+- `rag_service/`: The heart of the AI, Python FastAPI service managing ChromaDB and NVIDIA NIM.
 - `server/`: Node.js Gateway providing rate limiting, proxying, and static file serving.
 - `scripts/maintenance/`: Maintenance suite for data ingestion and system setup.
 - `deployment/`: Production-grade container configurations.
