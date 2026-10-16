@@ -25,10 +25,7 @@ services:
     healthCheckPath: /health
     envVars:
       - key: RAG_SERVICE_URL
-        fromService:
-          name: legal-ai-rag
-          type: web
-          property: hostport
+        value: https://legal-ai-rag-6nu1.onrender.com
       - key: PORT
         value: 3001
       - key: NODE_ENV
