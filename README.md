@@ -7,6 +7,22 @@ LegalAi is a high-performance **"Judge-Safe"** legal research platform. Designed
 
 ![Landing Page](./public/landing.png)
 
+**Live demo: https://legal-ai-gateway.onrender.com**
+
+## Screenshots
+
+**Landing page**
+
+![Landing page](docs/screenshots/legal-ai-home.png)
+
+**Features**
+
+![Features](docs/screenshots/legal-ai-3.png)
+
+**Mobile view**
+
+![Mobile view](docs/screenshots/legal-ai-mobile.png)
+
 ## 🏗️ The Architecture (Techny & Fancy)
 
 LegalAi is built on a distributed microservices architecture designed for reliability and speed.
