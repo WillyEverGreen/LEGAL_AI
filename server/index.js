@@ -153,17 +153,19 @@ app.use('/api/v1', createProxyMiddleware({
     pathRewrite: {
         '^/api/v1': '', // Remove /api/v1 prefix when forwarding to RAG service
     },
-    onProxyReq: (proxyReq, req, res) => {
-        console.log(`[Gateway] Forwarding ${req.method} request to: ${proxyReq.path}`);
-    },
-    onError: (err, req, res) => {
-        console.error(`[Gateway] Proxy connection error to ${RAG_SERVICE_URL}:`, err.message);
-        if (!res.headersSent) {
-            res.status(502).json({
-                status: 'error',
-                message: 'Unable to connect to LegalAi RAG service. Service may still be spinning up.',
-                detail: err.message
-            });
+    on: {
+        proxyReq: (proxyReq, req, res) => {
+            console.log(`[Gateway] Forwarding ${req.method} request to: ${proxyReq.path}`);
+        },
+        error: (err, req, res) => {
+            console.error(`[Gateway] Proxy connection error to ${RAG_SERVICE_URL}:`, err.message);
+            if (res && !res.headersSent && typeof res.status === 'function') {
+                res.status(502).json({
+                    status: 'error',
+                    message: 'Unable to connect to LegalAi RAG service. Service may still be spinning up.',
+                    detail: err.message
+                });
+            }
         }
     },
     proxyTimeout: 300000,
